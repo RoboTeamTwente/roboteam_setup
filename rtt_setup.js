@@ -21,10 +21,14 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
-const dependencies = "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-kinetic-uuid-msgs ros-kinetic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip";
+const dependencies = ""
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-kinetic-uuid-msgs ros-kinetic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip " // Dependencies copied from software documentation
++ "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
+
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
 const isRoot = require('is-root')();
+const makeShellCommand = cmd => `gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
 const confirmYes = () => ask("$ Answer: ").toLowerCase().includes('y');
 const confirmNo  = () => ask("$ Answer: ").toLowerCase().includes('n');
 const confirmYesDefault = () => {
@@ -39,8 +43,10 @@ const confirmNoDefault = () => {
 
 // ============================================================================================== //
 // ============================================================================================== //
-
-printLogoColoured();
+if(process.stdout.columns < 170)
+	printLogoSmall();
+else
+	printLogoColoured();
 l();l();
 
 if(isRoot){
@@ -81,14 +87,14 @@ Promise.resolve()
 .then(checkInternetAccess)	// Check if we have internet
 .then(ensureSoftware)		// Check if required software is installed
 .then(inquireRTT_ROOT)		// Check for RTT_ROOT
-.then(ensureRootDir)			// Make sure the folder exists
+.then(ensureRootDir)		// Make sure the folder exists
 .then(ensureRttbashrc)		// Write the rtt_bashrc file
 .then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
 .then(() => ensureSSLrepo('grSim'))
-.then(() => ensureSSLrepo('ssl-vision', false))
+.then(() => ensureSSLrepo('ssl-vision'))
 .then(() => ensureSSLrepo('ssl-refbox', false))
 .then(buildSSLRefbox)
 .then(runCatkinMakeInWorkspace)
@@ -272,14 +278,13 @@ function runCatkinMakeInWorkspace(){
 			return reject(`[runCatkinMakeInWorkspace] Required directory ${settings.RTT_REPOS.yellow} does not exist!`);
 		}
 
-		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
-		lInfo(`I'm running ${"catkin_make".yellow} in ${settings.RTT_WORKSPACE.yellow}. This might take a while...`);
-		// let cmd = `gnome-terminal -x bash -c "cd ${settings.RTT_WORKSPACE} && catkin_make"`;
-		
-		let cmd = `gnome-terminal --disable-factory -e '/bin/bash -c "cd /home/roboteampc/roboteamtwente/workspace && catkin_make && sleep 10"'`;
+		let cmd = "source ~/.bashrc; rtt_make; source ~/.bashrc; rtt_make; sleep 2;";
+		let shellCmd = makeShellCommand(cmd);
 
-		// let cmd = `cd ${settings.RTT_WORKSPACE} && catkin_make`;
-		exec(cmd, {encoding : 'utf8'}, (err, output) => {
+		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
+		lInfo(`I'm running the commands ${cmd.yellow}. This might take while...`);
+
+		exec(shellCmd, {encoding : 'utf8'}, (err, output) => {
 			if(err){
 				lWarn("The command failed, but that is expected (for now)");
 				lWarn(err)
@@ -295,10 +300,11 @@ function ensureRttbashrc(){
 	return new Promise((resolve, reject) => {
 		l();
 
+		// === Write the rtt_bashrc file to RTT_ROOT === //
 		let writeRttbashrc = () => {
-			let rtt_bashrc = require('./createRttbashrc').create(settings);
-			let rtt_bashrcPath = path.join(settings.RTT_ROOT, "rtt_bashrc");
-			fs.writeFile(rtt_bashrcPath, rtt_bashrc, (err, file) => {
+			let rtt_bashrc = require('./createRttbashrc').create(settings);		// Create the rtt_bashrc file
+			let rtt_bashrcPath = path.join(settings.RTT_ROOT, "rtt_bashrc");	// Create the filepath, RTT_ROOT/rtt_bashrc
+			fs.writeFile(rtt_bashrcPath, rtt_bashrc, (err, file) => {			// Write the file
 				if(err && err.code == "EACCES"){
 					return reject(`[ensureRttbashrc] Could not create file ${settings.RTT_BASHRC.yellow}! Permission denied (${err.code.yellow})`);
 				}
@@ -312,7 +318,9 @@ function ensureRttbashrc(){
 		}
 
 		lInfo(`I'm ensuring that the file ${settings.RTT_BASHRC.yellow} exists...`);
+		// === Check if the file rtt_bashrc already exists
 		fs.stat(settings.RTT_BASHRC, (err, stat) => {
+			// An error occured while trying to read the file
 			if(err && err.code != "ENOENT"){
 				lError(`An unknow error occured while checking for ${settings.RTT_BASHRC.yellow}...`);
 				return reject(`[ensureRttbashrc] An unknown error occured while checking for ${settings.RTT_BASHRC.yellow}...`);
@@ -403,10 +411,35 @@ function ensureRttRepos(){
 			// Ask if user wants to use SSH
 			lInquire("Would you like to use SSH to clone the git reposities? (Y/n)");
 			let useSSH = confirmYesDefault();
-			if(!useSSH)
+			if(!useSSH){
 				lWarn("It is recommended to use SSH! If you're not sure how, don't hesitate to ask!");
-
-			lWarn("Using HTTPS by default for now, since this install script cannot answer the 'rsa-fingerprint' prompt");
+			}else
+			// === Using SSH. Making sure that github.com is in the ~/.ssh/known_hosts file, to prevent prompts from showing up
+			{
+				let known_hostsPath = path.join('/', 'home', user, '.ssh', 'known_hosts');
+				lInfo(`I'm checking if the rsa-fingerprint for ${"github.com".yellow} is present in the file ${known_hostsPath.yellow}`);
+				// Check if the known_hosts file exists
+				let known_hostsExists = fs.existsSync(known_hostsPath);
+				let known_hosts = !known_hostsExists ? "" : fs.readFileSync(known_hostsPath, { encoding : 'utf8' });
+								
+				// Check if the known_hosts file includes the rsa-fingerprint for github.com
+				if(!known_hosts.includes("github.com")){
+					lWarn(`${"github.com".yellow} is not present in the file. I will add it for you...`);
+					let cmd = "ssh-keyscan github.com >> ~/.ssh/known_hosts";
+					try{
+						execSync(cmd, { encoding : 'utf8' });
+					}catch(err){
+						lError(`[ensureRttRepos] An error occured while adding ${"github.com".yellow} to the file ${known_hostsPath.yellow}!`);
+						lError(cmd.yellow)
+						lError(err.message.red)
+						return reject(err.message);
+					}
+					lSuccess(`rsa-fingerprint for ${"github.com".yellow} has been added!`)
+				}else{
+					lSuccess(`rsa-fingerprint for ${"github.com".yellow} is present!`)
+				}
+				l();
+			}
 
 			lInfo(`Cloning repositories. This might take a while...`);
 			// ==== Create promises for cloning all the repositories
@@ -424,7 +457,7 @@ function ensureRttRepos(){
 
 					exec(cmd, {encoding : 'utf8'}, err => {
 						if(err){
-							lError(`An error occured while cloning ${repo.yellow}!`);
+							lError(`[ensureRttRepos] An error occured while cloning ${repo.yellow}!`);
 							lError(cmd.yellow)
 							lError(err.message.red)
 							return reject(err);
@@ -448,6 +481,7 @@ function ensureRttRepos(){
 	});
 }
 
+// ==== Ensure that all the files have been copied to the right locations ==== //
 function ensureFiles(){
 
 	return new Promise((resolve, reject) => {
@@ -504,6 +538,7 @@ function ensureFiles(){
 	});
 }
 
+// ==== Ensure that all the required dependencies have been installed ==== //
 function ensureDependencies(){
 	return new Promise((resolve, reject) => {
 		l();
@@ -538,9 +573,11 @@ function ensureSSLrepo(repo, shouldBuild = true){
 			}
 
 			let cmd = `cd ${outputDir} && make build && cd build && cmake .. && make`;
+			let shellCmd = makeShellCommand(cmd);
+
 			lInfo(`I'm building ${repo.yellow} for you. Running command ${cmd.yellow}`);
 			lInfo(`This might take a while...`);
-			exec(cmd, (err, stdout, stderr) => {
+			exec(shellCmd, (err, stdout, stderr) => {
 				if(err){
 					lError(`[ensureSSLrepo] An error occured while building ${repo.yellow}`);
 					lError(err.message.red);
@@ -587,7 +624,6 @@ function ensureSSLrepo(repo, shouldBuild = true){
 				}
 				lSuccess(`Directory removed!`);
 				return clone();
-				l('werwer');
 			})
 		}else{
 			return clone();
@@ -599,11 +635,13 @@ function buildSSLRefbox(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		lInfo(`I'm building ssl-refbox...`);
 		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-refbox')} && sudo ./installDeps.sh && make`;
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`I'm building ssl-refbox...`);
 		lInfo(`Running command ${cmd.yellow}`);
 
-		exec(cmd, (err, stdout, stderr) => {
+		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
 				lError(`[buildSSLRefbox] An error occured while building ssl-refbox`);
 				lError(err.message.red);
@@ -711,5 +749,24 @@ l(`
                                                                                   ${"|          |".red}  |   |  |   |  |   | |   _______/ |   |   |   |  |   |     |   _______/
                                                                                   ${"|          |".red}  |   |__|   |__|   | |  |________ |   |   |   |  |   |___  |  |________
                                                                                   ${"|__________|".red}  \\_________________/ \\__________/ |___|   |___|  \\_______\\ \\__________/
+`)
+}
+
+function printLogoSmall(){
+l(`
+                                        
+                                        ${"▟██▀▀██▙   ▟███▀▀██▙".red}
+ _______                               ${"▟███▅▅██████████▅▅███▙".red}
+┃   __  ╲                                      ${"█████".red}      
+┃  ┃  ╲  ┃    ______     _______      ______   ${"█████".red}   ______    _______     ______________
+┃  ┃__╱  ┃   ╱  __  ╲   ┃   __  ╲    ╱  __  ╲  ${"█████".red}  ╱  __  ╲   ╲____  ╲   ┃   __    __   ╲
+┃      _╱   ┃  ┃  ┃  ┃  ┃  ┃__┃  )  ┃  ┃  ┃  ┃ ${"█████".red} ┃  ┃__┃  )   ____┃  ┃  ┃  ┃  ┃  ┃  ┃  ┃
+┃  ┃╲  ╲    ┃  ┃  ┃  ┃  ┃   __  (   ┃  ┃  ┃  ┃ ${"█████".red} ┃   ____╱   ╱  __   ┃  ┃  ┃  ┃  ┃  ┃  ┃
+┃  ┃ ╲  ╲   ┃  ┃__┃  ┃  ┃  ┃__┃  )  ┃  ┃__┃  ┃ ${"█████".red} ┃  ┃_____  (  ┃__┃  ┃  ┃  ┃  ┃  ┃  ┃  ┃
+┃__┃  ╲__╲   ╲______╱   ┃_______╱    ╲______╱  ${"█████".red}  ╲______╱   ╲_______┃  ┃__┃  ┃__┃  ┃__┃
+                                               ${"█████".red}  _   _    ____   __  _   _____    ____
+                                               ${"█████".red} ┃ ┃_┃ ┃  ╱ __ ╲ ┃  ╲┃ ┃ ┃__ __┃  ╱ __ ╲
+                                               ${"█████".red} ┃ ┃ ┃ ┃ ┃  ___╱ ┃ ┃ ┃ ┃   ┃ ┃   ┃  ___╱
+                                               ${"█████".red} ┃_____┃  ╲____╱ ┃_┃╲__┃   ┃_┃    ╲____╱
 `)
 }
