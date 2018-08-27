@@ -1,3 +1,14 @@
+# Check curl
+if which curl > /dev/null
+then
+	echo "curl is installed, skipping..."
+else
+	echo "Installing curl"
+	sudo apt update
+	sudo apt install -y curl
+	echo "curl installed"
+fi
+
 # Check nodejs
 if which node > /dev/null
 then
@@ -7,7 +18,7 @@ else
 	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
 	sudo apt update
 	sudo apt install -y nodejs
-	echo "Nodejs installed"
+	echo "nodejs installed"
 fi
 
 # Check npm
