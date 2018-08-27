@@ -84,11 +84,11 @@ Promise.resolve()
 .then(ensureRootDir)			// Make sure the folder exists
 .then(ensureRttbashrc)		// Write the rtt_bashrc file
 .then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
-.then(ensureGitRepos)
+.then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
 .then(() => ensureSSLrepo('grSim'))
-.then(() => ensureSSLrepo('ssl-vision'))
+.then(() => ensureSSLrepo('ssl-vision', false))
 .then(() => ensureSSLrepo('ssl-refbox', false))
 .then(buildSSLRefbox)
 .then(runCatkinMakeInWorkspace)
@@ -203,15 +203,18 @@ function ensureSoftware(){
 
 	// Check if ROS is installed
 	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
+	let rosSetupPath = path.join('/', 'opt', 'ros', 'kinetic', 'setup.bash');
+	lInfo(`Locating file ${rosSetupPath.yellow}`);
+
 	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
-	if(!process.env.ROS_ROOT){
+	if(!fs.existsSync(rosSetupPath)){
 		lError(`Hold up! ${"ROS".yellow} doesn't seem to be installed, because the environmental variable ${"ROS_ROOT".yellow} is not set!`);
 		lError(`I will try to open up the website for you, which will tell you how to install ${"ROS".yellow}`);
 		lError(url.yellow);
 		execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
 		return Promise.reject(`[ensureSoftware] ${"ROS".yellow} does not seem to be installed! please visit ${url.yellow}`);
 	}else{
-		lSuccess(`ROS seems to be installed at ${process.env.ROS_ROOT.yellow}!`);
+		lSuccess(`ROS seems to be installed!`);
 	}
 
 	// Check if Git is installed
@@ -272,10 +275,14 @@ function runCatkinMakeInWorkspace(){
 		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
 		lInfo(`I'm running ${"catkin_make".yellow} in ${settings.RTT_WORKSPACE.yellow}. This might take a while...`);
 		// let cmd = `gnome-terminal -x bash -c "cd ${settings.RTT_WORKSPACE} && catkin_make"`;
-		let cmd = `cd ${settings.RTT_WORKSPACE} && catkin_make`;
+		
+		let cmd = `gnome-terminal --disable-factory -e '/bin/bash -c "cd /home/roboteampc/roboteamtwente/workspace && catkin_make && sleep 10"'`;
+
+		// let cmd = `cd ${settings.RTT_WORKSPACE} && catkin_make`;
 		exec(cmd, {encoding : 'utf8'}, (err, output) => {
 			if(err){
 				lWarn("The command failed, but that is expected (for now)");
+				lWarn(err)
 			}
 			lSuccess(`${"catkin_make".yellow} was ran in ${settings.RTT_WORKSPACE.yellow}`);
 			return resolve();
@@ -369,7 +376,7 @@ function ensureBashrc(){
 }
 
 // ==== Ensure that all the relevant git repos exist in RTT_ROOT/workspace/src ==== //
-function ensureGitRepos(){
+function ensureRttRepos(){
 	return new Promise((resolve, reject) => {
 		l();
 
@@ -381,13 +388,14 @@ function ensureGitRepos(){
 			{ repo : "roboteam_robothub", dir : settings.RTT_REPOS },
 			{ repo : "roboteam_input"	, dir : settings.RTT_REPOS }, 
 			{ repo : "roboteam_tactics"	, dir : settings.RTT_REPOS },
+			{ repo : "roboteam_rqt_view", dir : settings.RTT_REPOS },
 			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
 		];
 
 		lInfo(`I'm ensuring that the repository directory ${settings.RTT_REPOS.yellow} exists...`);
 		fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
 			if(err)
-				return reject(`[ensureGitRepos] An error occured while creating ${settings.RTT_REPOS.yellow} (${err.code})`);
+				return reject(`[ensureRttRepos] An error occured while creating ${settings.RTT_REPOS.yellow} (${err.code})`);
 			if(dir) lInfo(`Directory ${settings.RTT_REPOS.yellow} created`);
 			else lInfo(`Directory ${settings.RTT_REPOS.yellow} already exists`);
 			// ==== Directory exists. Start pulling in repos
@@ -404,7 +412,7 @@ function ensureGitRepos(){
 			// ==== Create promises for cloning all the repositories
 			let promises = _.map(repos, ({ repo, dir }) => {
 				return new Promise((resolve, reject) => {
-					let outputDir= dir;
+					let outputDir= path.join(dir, repo);
 					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
 					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
 					let cmd = useSSH ? cmdSsh : cmdHttps;
@@ -434,7 +442,7 @@ function ensureGitRepos(){
 				return resolve();
 			}).catch(err => {
 				lError(`An error occured while cloning all the repos!`);
-				return reject(`[ensureGitRepos] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
+				return reject(`[ensureRttRepos] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
 			})
 		})
 	});
@@ -530,7 +538,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 			}
 
 			let cmd = `cd ${outputDir} && make build && cd build && cmake .. && make`;
-			lInfo(`I'm building ${repo.yellow} for you. Runing command ${cmd.yellow}`);
+			lInfo(`I'm building ${repo.yellow} for you. Running command ${cmd.yellow}`);
 			lInfo(`This might take a while...`);
 			exec(cmd, (err, stdout, stderr) => {
 				if(err){
@@ -557,12 +565,12 @@ function ensureSSLrepo(repo, shouldBuild = true){
 					return reject(stderr);
 				}
 
-				lSuccess(`grSim has succesfully been cloned to ${outputDir.yellow}`);
+				lSuccess(`${repo.yellow} has succesfully been cloned to ${outputDir.yellow}`);
 				return build();
 			})
 		}
 
-		// grsim directory already exists!
+		// output directory already exists!
 		if(fs.existsSync(outputDir)){
 			lInquire(`The ${repo.yellow} directory ${outputDir.yellow} already exists. Do you want me to remove it? (y/N)`);
 			if(confirmNoDefault()){
@@ -570,7 +578,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 				return resolve();
 			}
 
-			// Remove the grSim directory
+			// Remove the output directory
 			lInfo(`Removing directory ${outputDir.yellow}...`);
 			fs.remove(outputDir, err => {
 				if(err){

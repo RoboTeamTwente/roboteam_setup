@@ -21,7 +21,7 @@ function rtt_build() {
         cd ${path.join(settings.RTT_ROOT, 'workspace')}
 
         # run the command
-        eval $1
+        source ${path.join(settings.RTT_ROOT, 'devel', 'setup.sh')} && eval $1
 
         # Check if command succeeded
         if [ $? -eq 0 ]; then
