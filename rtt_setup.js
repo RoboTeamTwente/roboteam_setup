@@ -130,6 +130,115 @@ function inquireSoothingMusic(){
 	})
 }
 
+// ==== Ensure that the user has internet access to install dependencies / pull repos / etc
+function checkInternetAccess(){
+	return new Promise((resolve, reject) => {
+		l();
+		
+		lInfo(`I'm checking if we have internet access by looking up github.com ...`);
+		
+		require('dns').lookup('github.com',function(err) {
+	        if (err && err.code == "ENOTFOUND") {
+	        	lError(`It seems like we don't have internet access! We need that to install dependencies, pull from git, yadayada...`);
+	            return reject(`[checkInternetAccess] It seems that you do not have internet access (or worse, github.com is down)! (${err.code.yellow})`)
+	        } else 
+	        if (err){
+	        	lError(`It seems like we don't have internet access! We need that to install dependencies, pull from git, yadayada...`);
+	            return reject(`[checkInternetAccess] It seems that you do not have internet access! (${err.code.yellow})`)
+	        } else{
+				lSuccess(`It seems like we do!`);
+				return resolve();
+	        }
+	    })
+		
+	});
+}
+
+// ==== Ensure that ROS and git are installed
+function ensureSoftware(){
+	l();
+	
+	let url;
+
+	// Check if Git is installed
+	lInfo(`I'm checking if you've installed ${"Git".yellow}...`)
+	url = "https://git-scm.com/download/linux";
+	if(!commandExistsSync('git')){
+		lError(`Hold up! ${"Git".yellow} doesn't seem to be installed!`);
+		lError(`I will try to open up the website for you, which will tell you how to install ${"Git".yellow}`);
+		lError(url.yellow);
+		execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
+		return Promise.reject(`[ensureSoftware] ${"GIT".yellow} does not seem to be installed! please visit ${url.yellow}`);
+	}else{
+		lSuccess(`Git seems to be installed at ${execSync('which git', {encoding : 'UTF8'}).trim().yellow}!`);
+	}
+
+	// Check if ROS is installed
+	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
+	let rosSetupPath = path.join('/', 'opt', 'ros', 'kinetic', 'setup.bash');
+	lInfo(`Locating file ${rosSetupPath.yellow}`);
+
+	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
+	if(!fs.existsSync(rosSetupPath)){
+		lError(`Hold up! ${"ROS".yellow} doesn't seem to be installed, because the environmental variable ${"ROS_ROOT".yellow} is not set!`);
+		lInquire(`Do you want me to install ${"ROS".yellow} for you? (y/N)`);
+		// User wants to install ROS manually
+		if(confirmNoDefault()){
+			lInfo(`I will try to open up the website for you, which will tell you how to install ${"ROS".yellow}`);
+			lInfo(url.yellow);
+			execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
+			return Promise.reject(`[ensureSoftware] ${"ROS".yellow} does not seem to be installed! please visit ${url.yellow}`);
+		}else
+		// User wants us to install ROS
+		{
+			return installROS();
+		}
+	}else{
+		lSuccess(`ROS seems to be installed!`);
+	}
+
+	return Promise.resolve();
+}
+
+function installROS(){
+	return new Promise((resolve, reject) => {
+
+		l();
+		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/kinetic/Installation/Ubuntu".yellow}`);
+
+		let commands = [
+			// 1.2 Set up sources.list
+			`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'`,
+			// 1.3 Set up your keys
+			`sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116`,
+			// 1.4 Installation
+			`sudo apt-get update`,
+			// Install everything
+			`sudo apt-get install ros-kinetic-desktop-full`,
+			// Install these two again, because for some reason, they are sometimes skipped when installing ros-kinetic-desktop-full
+			`sudo apt install ros-kinetic-unique-id`,
+			`sudo apt install ros-kinetic-uuid-msgs`,
+			// 1.5 Initialize rosdep
+			`sudo rosdep init`,
+			`rosdep update`
+		];
+
+		let hugeCmd = commands.join("; ") + ";";
+		let shellCmd = makeShellCommand(hugeCmd);
+		exec(shellCmd, {encoding : 'utf8'}, err => {
+			if(err){
+				lError(`[installROS] An error occured while installing ${"ROS".yellow}!`);
+				lError(hugeCmd.yellow)
+				lError(err.message.red)
+				return reject(err);
+			}else{
+				lSuccess(`${"ROS"} installed succesfully!`);
+				return resolve();
+			}
+		});	
+	});
+}
+
 // ==== Get the directory RTT_ROOT for all of the RoboTeam Twente stuff ==== //
 function inquireRTT_ROOT(){
 	return new Promise((resolve, reject) => {
@@ -177,68 +286,6 @@ function inquireRTT_ROOT(){
 	})
 }
 
-// ==== Ensure that the user has internet access to install dependencies / pull repos / etc
-function checkInternetAccess(){
-	return new Promise((resolve, reject) => {
-		l();
-		
-		lInfo(`I'm checking if we have internet access by looking up github.com ...`);
-		
-		require('dns').lookup('github.com',function(err) {
-	        if (err && err.code == "ENOTFOUND") {
-	        	lError(`It seems like we don't have internet access! We need that to install dependencies, pull from git, yadayada...`);
-	            return reject(`[checkInternetAccess] It seems that you do not have internet access (or worse, github.com is down)! (${err.code.yellow})`)
-	        } else 
-	        if (err){
-	        	lError(`It seems like we don't have internet access! We need that to install dependencies, pull from git, yadayada...`);
-	            return reject(`[checkInternetAccess] It seems that you do not have internet access! (${err.code.yellow})`)
-	        } else{
-				lSuccess(`It seems like we do!`);
-				return resolve();
-	        }
-	    })
-		
-	});
-}
-
-// ==== Ensure that ROS is installed
-function ensureSoftware(){
-	l();
-	
-	let url;
-
-	// Check if ROS is installed
-	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
-	let rosSetupPath = path.join('/', 'opt', 'ros', 'kinetic', 'setup.bash');
-	lInfo(`Locating file ${rosSetupPath.yellow}`);
-
-	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
-	if(!fs.existsSync(rosSetupPath)){
-		lError(`Hold up! ${"ROS".yellow} doesn't seem to be installed, because the environmental variable ${"ROS_ROOT".yellow} is not set!`);
-		lError(`I will try to open up the website for you, which will tell you how to install ${"ROS".yellow}`);
-		lError(url.yellow);
-		execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
-		return Promise.reject(`[ensureSoftware] ${"ROS".yellow} does not seem to be installed! please visit ${url.yellow}`);
-	}else{
-		lSuccess(`ROS seems to be installed!`);
-	}
-
-	// Check if Git is installed
-	lInfo(`I'm checking if you've installed ${"Git".yellow}...`)
-	url = "https://git-scm.com/download/linux";
-	if(!commandExistsSync('git')){
-		lError(`Hold up! ${"Git".yellow} doesn't seem to be installed!`);
-		lError(`I will try to open up the website for you, which will tell you how to install ${"Git".yellow}`);
-		lError(url.yellow);
-		execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
-		return Promise.reject(`[ensureSoftware] ${"GIT".yellow} does not seem to be installed! please visit ${url.yellow}`);
-	}else{
-		lSuccess(`Git seems to be installed at ${execSync('which git', {encoding : 'UTF8'}).trim().yellow}!`);
-	}
-
-	return Promise.resolve();
-}
-
 // ==== Ensure that the RTT_ROOT directory exists
 function ensureRootDir(){
 	return new Promise((resolve, reject) => {
@@ -266,33 +313,6 @@ function ensureRootDir(){
 			return resolve();
 		})
 	})
-}
-
-function runCatkinMakeInWorkspace(){
-	return new Promise((resolve, reject) => {
-		l();
-
-		lInfo(`I'm checking if directory ${settings.RTT_REPOS.yellow} exists...`);
-		if(!fs.existsSync(settings.RTT_REPOS)){
-			lError(`Required directory ${settings.RTT_REPOS.yellow} does not exist!`)
-			return reject(`[runCatkinMakeInWorkspace] Required directory ${settings.RTT_REPOS.yellow} does not exist!`);
-		}
-
-		let cmd = "source ~/.bashrc; rtt_make; source ~/.bashrc; rtt_make; sleep 2;";
-		let shellCmd = makeShellCommand(cmd);
-
-		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
-		lInfo(`I'm running the commands ${cmd.yellow}. This might take while...`);
-
-		exec(shellCmd, {encoding : 'utf8'}, (err, output) => {
-			if(err){
-				lWarn("The command failed, but that is expected (for now)");
-				lWarn(err)
-			}
-			lSuccess(`${"catkin_make".yellow} was ran in ${settings.RTT_WORKSPACE.yellow}`);
-			return resolve();
-		})
-	});
 }
 
 // ==== Ensure that the file RTT_BASHRC exists
@@ -653,6 +673,33 @@ function buildSSLRefbox(){
 			return resolve();
 		})
 	})
+}
+
+function runCatkinMakeInWorkspace(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		lInfo(`I'm checking if directory ${settings.RTT_REPOS.yellow} exists...`);
+		if(!fs.existsSync(settings.RTT_REPOS)){
+			lError(`Required directory ${settings.RTT_REPOS.yellow} does not exist!`)
+			return reject(`[runCatkinMakeInWorkspace] Required directory ${settings.RTT_REPOS.yellow} does not exist!`);
+		}
+
+		let cmd = "source ~/.bashrc; rtt_make; source ~/.bashrc; rtt_make; sleep 2;";
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
+		lInfo(`I'm running the commands ${cmd.yellow}. This might take while...`);
+
+		exec(shellCmd, {encoding : 'utf8'}, (err, output) => {
+			if(err){
+				lWarn("The command failed, but that is expected (for now)");
+				lWarn(err)
+			}
+			lSuccess(`${"catkin_make".yellow} was ran in ${settings.RTT_WORKSPACE.yellow}`);
+			return resolve();
+		})
+	});
 }
 
 
