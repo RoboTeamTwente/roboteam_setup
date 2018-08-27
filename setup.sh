@@ -1,6 +1,3 @@
-# Update
-sudo apt update
-
 # Check nodejs
 if which node > /dev/null
 then
@@ -8,6 +5,7 @@ then
 else
 	echo "Installing nodejs"
 	curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
+	sudo apt update
 	sudo apt install -y nodejs
 	echo "Nodejs installed"
 fi
@@ -18,6 +16,7 @@ then
 	echo "npm is installed, skipping..."
 else
 	echo "Installing npm"
+	sudo apt update
 	sudo apt install -y npm
 	echo "npm installed"
 fi
@@ -28,6 +27,7 @@ then
 	echo "git is installed, skipping..."
 else
 	echo "Installing git"
+	sudo apt update
 	sudo apt install -y git
 	echo "git installed"
 fi
