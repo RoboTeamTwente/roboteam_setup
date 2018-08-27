@@ -1,0 +1,107 @@
+
+source /opt/ros/kinetic/setup.bash
+
+# Export RTT_ROOT, indicating the root of the RoboTeam Twente folder
+export RTT_ROOT=
+# Set languages for which ROS messages do NOT have to be generated. Enabled: gencpp gennodejs genpy
+export ROS_LANG_DISABLE=genlisp:geneus
+# Set formatting for ROS logging
+export ROSCONSOLE_FORMAT='[${severity}][${logger}]: ${message}'
+# Set the path for rosconsole.config, which defines ROS logging levels
+export ROSCONSOLE_CONFIG_FILE=workspace/rosconsole.config
+# source the setup for the workspace
+source workspace/devel/setup.bash
+
+function rtt_build() {
+    (
+        # Go up in the directory tree until a catkin_workspace has been found or root has been reached
+        while true; do
+            if [[ "$PWD" == "/" ]] ; then
+                break
+            fi
+
+            if [ ! -f ./.catkin_workspace ]; then
+                cd ..
+            else
+                break
+            fi       
+        done
+
+        # Check if the folder .catkin_workspace exists in the current folder, indicating a workspace
+        # If not, try to cd directly to the correct workspace
+        if [ ! -f ./.catkin_workspace ]; then
+        	printf "No catkin workspace discovered while going up..."
+        	printf "cd'ing manually to workspace"
+        	cd workspace
+        fi
+
+        # If there is still no workspace, then we have no idea where it might be
+        if [ -f ./.catkin_workspace ]; then
+            eval $1
+
+            if [ $? -eq 0 ]; then
+                notify-send -u critical -i media/thumbsup.png "Compilation message" "Compilation succeeded!"
+            else
+                notify-send -u critical -i media/thumbsdown.png "Compilation message" "Compilation failed!"
+            fi
+        else
+            printf "No catkin workspace discovered!\n"
+        fi
+    )
+}
+
+# Not sure why this was ever here
+#export HISTCONTROL=
+
+#function try_rtt_nuke() {
+#    cmdHistory=$(history 2 | head -n 1)
+#    #printf "$(history)"
+#    #printf "\n\n:::HISTORY:::::\n\n$cmdHistory"
+#    if [[ $cmdHistory == "rtt_nuke" ]]; then
+#        read -p "Are you sure? " -n 1 -r
+#        echo    # (optional) move to a new line
+#        if [[ $REPLY =~ ^[Yy]$ ]]; then
+#            # do dangerous stuff
+#            rtt_build "catkin_make clean && catkin_make"
+#            #printf "REALLY done building"
+#        fi 
+#    else
+#        rtt_build "catkin_make clean && catkin_make"
+#        #printf "done building"
+#    fi
+#}
+
+alias rtt="cd "
+alias rtt_make="rtt_build catkin_make"
+alias rtt_nuke="rtt_build "catkin_make clean && catkin_make""
+alias TestX="rosrun roboteam_tactics TestX"
+alias rosrung="rosrun --prefix \"gdb --args\""
+printf "[.rtt_bashrc] settings aliases rtt, rtt_make, rtt_nuke, TestX, rosrung"
+
+
+_GetTestXOptions () {
+    local cur prev words cword
+    _init_completion || return
+    COMPREPLY=()
+    local words=$(TestX show all | grep -E ".?- .?$" | sed -E "s/.?- (.?)$/\1/" )
+    COMPREPLY=( $( compgen -W '${words}' -- "$cur") )
+    return 0
+}
+
+complete -F _GetTestXOptions TestX
+    
+switchSides () {
+    side="$(rosparam get our_side)"
+
+    if [ "$side" = "left" ]; then
+        rosparam set our_side right
+        printf "Switched to right side"
+    elif [ "$side" = "right" ]; then
+        rosparam set our_side left
+        printf "Switched to left side"
+    else
+        printf "Could not switch sides"
+    fi
+
+    printf "\n"
+}
