@@ -101,9 +101,10 @@ Promise.resolve()
 .then(() => ensureSSLrepo('ssl-refbox'))
 .then(buildSSLRefbox)
 .then(runCatkinMakeInWorkspace)
+.then(removeModemManager)
+.then(addUserToDialoutGroup)
 
 .then(() => {
-	lError(`Please run manually ${"sudo apt remove modemmanager".yellow}`);
 	l();
 	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
 	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
@@ -599,30 +600,6 @@ function ensureSSLrepo(repo, shouldBuild = true){
 
 		const outputDir = path.join(settings.RTT_ROOT, repo);
 
-		let build = () => {
-			if(!shouldBuild){
-				lSuccess(`Not building ${repo.yellow}...`);
-				return resolve();
-			}
-
-			let cmd = `cd ${outputDir} && make build && cd build && cmake .. && make`;
-			let shellCmd = makeShellCommand(cmd);
-
-			lInfo(`I'm building ${repo.yellow} for you. Running command ${cmd.yellow}`);
-			lInfo(`This might take a while...`);
-			exec(shellCmd, (err, stdout, stderr) => {
-				if(err){
-					lError(`[ensureSSLrepo] An error occured while building ${repo.yellow}`);
-					lError(err.message.red);
-					lError(stderr);
-					return reject(stderr);
-				}
-
-				lSuccess(`${repo.yellow} has succesfully been build in ${outputDir.yellow}! Run it using the scripts in command ${"./bin".yellow}`);
-				return resolve();
-			})
-		}
-
 		let clone = () => {
 			const cmd = `git clone https://github.com/RoboCup-SSL/${repo}.git ${outputDir}`;
 			lInfo(`Running command ${cmd.yellow}`);
@@ -636,7 +613,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 				}
 
 				lSuccess(`${repo.yellow} has succesfully been cloned to ${outputDir.yellow}`);
-				return build();
+				return resolve();
 			})
 		}
 
@@ -682,8 +659,8 @@ function buildGrSimVarTypes(){
 		let hugeCommand = commands.join("; ") + ";";
 		let shellCmd = makeShellCommand(hugeCommand);
 
-		lInfo(`I'm building ssl-vision...`);
-		lInfo(`Running command ${cmd.yellow}`);
+		lInfo(`I'm building VarTypes...`);
+		lInfo(`Running command ${hugeCommand.yellow}`);
 
 		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
@@ -700,7 +677,7 @@ function buildGrSimVarTypes(){
 }
 
 function buildGrSim(){
-		return new Promise((resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		l();
 
 		let cmd = `cd ${path.join(settings.RTT_ROOT, 'grSim')} && mkdir build && cd build && cmake .. && make`;
@@ -798,6 +775,47 @@ function runCatkinMakeInWorkspace(){
 	});
 }
 
+function removeModemManager(){
+	return new Promise((resolve, reject) => {
+		l();
+		let cmd = `sudo apt purge modemmanager`;
+
+		lInfo(`I'm removing ${"modemmanager".yellow} for you, because it interferes with the basestations`);
+		lInfo(`I'm running the command ${cmd.yellow}`);
+
+		exec(makeShellCommand(cmd), {encoding : 'utf8'}, (err, output) => {
+			if(err){
+				lError(`[removeModemManager] An error occured while removing ${"modemmanager".yellow}!`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+			lSuccess(`${"modemmanager".yellow} has been removed`);
+			return resolve();
+		})
+	})
+}
+
+function addUserToDialoutGroup(){
+	return new Promise((resolve, reject) => {
+		l();
+		let cmd = `sudo adduser ${user} dialout`;
+
+		lInfo(`I'm adding you to the ${"dialout".yellow} group, which is required to communicate with the basestations`);
+		lInfo(`I'm running the command ${cmd.yellow}`);
+
+		exec(makeShellCommand(cmd), {encoding : 'utf8'}, (err, output) => {
+			if(err){
+				lError(`[addUserToDialoutGroup] An error occured while adding you to the ${"dialout".yellow} group!`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+			lSuccess(`You have been added to the ${"dialout".yellow} group`);
+			return resolve();
+		})
+	})
+}
 
 // ============================================================================================== //
 // ============================================================================================== //
