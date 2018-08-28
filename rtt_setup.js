@@ -212,10 +212,10 @@ function installROS(){
 			// 1.4 Installation
 			`sudo apt-get update`,
 			// Install everything
-			`sudo apt-get install ros-kinetic-desktop-full`,
+			`sudo apt-get install -y ros-kinetic-desktop-full`,
 			// Install these two again, because for some reason, they are sometimes skipped when installing ros-kinetic-desktop-full
-			`sudo apt install ros-kinetic-unique-id`,
-			`sudo apt install ros-kinetic-uuid-msgs`,
+			`sudo apt install -y ros-kinetic-unique-id`,
+			`sudo apt install -y ros-kinetic-uuid-msgs`,
 			// 1.5 Initialize rosdep
 			`sudo rosdep init`,
 			`rosdep update`
