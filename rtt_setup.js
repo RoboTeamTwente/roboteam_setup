@@ -207,8 +207,6 @@ function installROS(){
 		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/kinetic/Installation/Ubuntu".yellow}`);
 
 		let commands = [
-			// 1.2 Set up sources.list
-			`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'`,
 			// 1.3 Set up your keys
 			`sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116`,
 			// 1.4 Installation
@@ -225,6 +223,17 @@ function installROS(){
 
 		let hugeCmd = commands.join("; ") + ";";
 		let shellCmd = makeShellCommand(hugeCmd);
+		
+		// This command can't be run using shellCmd because of the quotes
+		try{
+			execSync(`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list`, { encoding : 'utf8' });
+		}catch(err){
+			lError(`[installROS] An error occured while running ${"1.2 Set up sources.list".yellow}!`);
+			lError(cmd.yellow)
+			lError(err.message.red)
+			return reject(err.message);
+		}		
+
 		exec(shellCmd, {encoding : 'utf8'}, err => {
 			if(err){
 				lError(`[installROS] An error occured while installing ${"ROS".yellow}!`);
