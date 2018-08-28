@@ -28,7 +28,7 @@ const dependencies = ""
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
 const isRoot = require('is-root')();
-const makeShellCommand = cmd => `gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
+const makeShellCommand = cmd => `sudo -H gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
 const confirmYes = () => ask("$ Answer: ").toLowerCase().includes('y');
 const confirmNo  = () => ask("$ Answer: ").toLowerCase().includes('n');
 const confirmYesDefault = () => {
@@ -258,7 +258,7 @@ function inquireRTT_ROOT(){
 		lInfo(`The default RTT_ROOT directory is ${settings.RTT_ROOT.yellow}`);
 		
 		let changeRTT_ROOT = newRoot => {
-			settings.setRTT_ROOT(newRoot);    // set the new RTT_ROOT in the settings object
+			settings.setRTT_ROOT(newRoot);    	// set the new RTT_ROOT in the settings object
 			settings.settingsChanged = true;	// set the settings to changed
 		};
 
@@ -418,17 +418,18 @@ function ensureRttRepos(){
 		l();
 
 		const repos = [
-			{ repo : "roboteam_msgs"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_utils"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_vision"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_world"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_robothub", dir : settings.RTT_REPOS },
-			{ repo : "roboteam_input"	, dir : settings.RTT_REPOS }, 
-			{ repo : "roboteam_tactics"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_rqt_view", dir : settings.RTT_REPOS },
+			{ repo : "roboteam_msgs"	},
+			{ repo : "roboteam_utils"	},
+			{ repo : "roboteam_vision"	},
+			{ repo : "roboteam_world"	},
+			{ repo : "roboteam_robothub"},
+			{ repo : "roboteam_input"	}, 
+			{ repo : "roboteam_tactics"	},
+			{ repo : "roboteam_rqt_view", branch : 'enhance_tester_panel'},
 			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
 		];
 
+		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
 		lInfo(`I'm ensuring that the repository directory ${settings.RTT_REPOS.yellow} exists...`);
 		fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
 			if(err)
@@ -471,12 +472,12 @@ function ensureRttRepos(){
 			}
 
 			lInfo(`Cloning repositories. This might take a while...`);
-			// ==== Create promises for cloning all the repositories
-			let promises = _.map(repos, ({ repo, dir }) => {
+			// ==== Create promises for cloning all the repositories. Default to RTT_ROOT/workspace/src/. Default to master branch
+			let promises = _.map(repos, ({ repo, dir = settings.RTT_REPOS, branch = "master" }) => {
 				return new Promise((resolve, reject) => {
 					let outputDir= path.join(dir, repo);
-					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
-					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
+					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
+					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
 					let cmd = useSSH ? cmdSsh : cmdHttps;
 					
 					if(fs.existsSync(outputDir)){
@@ -575,7 +576,7 @@ function ensureDependencies(){
 		lInfo(`I'm ensuring that you have installed all the required dependencies. This might take a while...`);
 		const cmd = `sudo apt update && sudo apt install -y ${dependencies}`;
 		lInfo(cmd.yellow);
-		exec(cmd, err => {
+		exec(makeShellCommand(cmd), err => {
 			if(err){
 				lError(`An error occured while installing all the dependencies!`);
 				return reject(`[ensureDependencies] An error occured installing all the dependencies!\n${err.message.red}`);
