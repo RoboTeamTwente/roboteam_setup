@@ -94,13 +94,17 @@ Promise.resolve()
 .then(ensureFiles)
 .then(ensureDependencies)
 .then(() => ensureSSLrepo('grSim'))
+.then(buildGrSimVarTypes)
+.then(buildGrSim)
 .then(() => ensureSSLrepo('ssl-vision'))
-.then(() => ensureSSLrepo('ssl-refbox', false))
+.then(buildSSLVision)
+.then(() => ensureSSLrepo('ssl-refbox'))
 .then(buildSSLRefbox)
 .then(runCatkinMakeInWorkspace)
+.then(removeModemManager)
+.then(addUserToDialoutGroup)
 
 .then(() => {
-	lError(`Please run manually ${"sudo apt remove modemmanager".yellow}`);
 	l();
 	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
 	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
@@ -258,7 +262,7 @@ function inquireRTT_ROOT(){
 		lInfo(`The default RTT_ROOT directory is ${settings.RTT_ROOT.yellow}`);
 		
 		let changeRTT_ROOT = newRoot => {
-			settings.setRTT_ROOT(newRoot);    // set the new RTT_ROOT in the settings object
+			settings.setRTT_ROOT(newRoot);    	// set the new RTT_ROOT in the settings object
 			settings.settingsChanged = true;	// set the settings to changed
 		};
 
@@ -418,17 +422,18 @@ function ensureRttRepos(){
 		l();
 
 		const repos = [
-			{ repo : "roboteam_msgs"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_utils"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_vision"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_world"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_robothub", dir : settings.RTT_REPOS },
-			{ repo : "roboteam_input"	, dir : settings.RTT_REPOS }, 
-			{ repo : "roboteam_tactics"	, dir : settings.RTT_REPOS },
-			{ repo : "roboteam_rqt_view", dir : settings.RTT_REPOS },
+			{ repo : "roboteam_msgs"	},
+			{ repo : "roboteam_utils"	},
+			{ repo : "roboteam_vision"	},
+			{ repo : "roboteam_world"	},
+			{ repo : "roboteam_robothub"},
+			{ repo : "roboteam_input"	}, 
+			{ repo : "roboteam_tactics"	},
+			{ repo : "roboteam_rqt_view", branch : 'enhance_tester_panel'},
 			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
 		];
 
+		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
 		lInfo(`I'm ensuring that the repository directory ${settings.RTT_REPOS.yellow} exists...`);
 		fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
 			if(err)
@@ -471,12 +476,12 @@ function ensureRttRepos(){
 			}
 
 			lInfo(`Cloning repositories. This might take a while...`);
-			// ==== Create promises for cloning all the repositories
-			let promises = _.map(repos, ({ repo, dir }) => {
+			// ==== Create promises for cloning all the repositories. Default to RTT_ROOT/workspace/src/. Default to master branch
+			let promises = _.map(repos, ({ repo, dir = settings.RTT_REPOS, branch = "master" }) => {
 				return new Promise((resolve, reject) => {
 					let outputDir= path.join(dir, repo);
-					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
-					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
+					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
+					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
 					let cmd = useSSH ? cmdSsh : cmdHttps;
 					
 					if(fs.existsSync(outputDir)){
@@ -575,7 +580,7 @@ function ensureDependencies(){
 		lInfo(`I'm ensuring that you have installed all the required dependencies. This might take a while...`);
 		const cmd = `sudo apt update && sudo apt install -y ${dependencies}`;
 		lInfo(cmd.yellow);
-		exec(cmd, err => {
+		exec(makeShellCommand(cmd), err => {
 			if(err){
 				lError(`An error occured while installing all the dependencies!`);
 				return reject(`[ensureDependencies] An error occured installing all the dependencies!\n${err.message.red}`);
@@ -595,30 +600,6 @@ function ensureSSLrepo(repo, shouldBuild = true){
 
 		const outputDir = path.join(settings.RTT_ROOT, repo);
 
-		let build = () => {
-			if(!shouldBuild){
-				lSuccess(`Not building ${repo.yellow}...`);
-				return resolve();
-			}
-
-			let cmd = `cd ${outputDir} && make build && cd build && cmake .. && make`;
-			let shellCmd = makeShellCommand(cmd);
-
-			lInfo(`I'm building ${repo.yellow} for you. Running command ${cmd.yellow}`);
-			lInfo(`This might take a while...`);
-			exec(shellCmd, (err, stdout, stderr) => {
-				if(err){
-					lError(`[ensureSSLrepo] An error occured while building ${repo.yellow}`);
-					lError(err.message.red);
-					lError(stderr);
-					return reject(stderr);
-				}
-
-				lSuccess(`${repo.yellow} has succesfully been build in ${outputDir.yellow}! Run it using the scripts in command ${"./bin".yellow}`);
-				return resolve();
-			})
-		}
-
 		let clone = () => {
 			const cmd = `git clone https://github.com/RoboCup-SSL/${repo}.git ${outputDir}`;
 			lInfo(`Running command ${cmd.yellow}`);
@@ -632,7 +613,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 				}
 
 				lSuccess(`${repo.yellow} has succesfully been cloned to ${outputDir.yellow}`);
-				return build();
+				return resolve();
 			})
 		}
 
@@ -660,6 +641,89 @@ function ensureSSLrepo(repo, shouldBuild = true){
 	})
 }
 
+function buildGrSimVarTypes(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		// === Installation instructions according to https://github.com/RoboCup-SSL/grSim/blob/master/INSTALL.md
+		let commands = [
+			'cd /tmp',
+			'git clone https://github.com/szi/vartypes.git',
+			'cd vartypes',
+			'mkdir build',
+			'cd build',
+			'cmake ..',
+			'make',
+			'sudo make install'
+		];
+		let hugeCommand = commands.join("; ") + ";";
+		let shellCmd = makeShellCommand(hugeCommand);
+
+		lInfo(`I'm building VarTypes...`);
+		lInfo(`Running command ${hugeCommand.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildGrSimVarTypes] An error occured while building the VarTypes for grSim`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`The VarTypes for grSim has succesfully been build`);
+			return resolve();
+		})
+	});
+}
+
+function buildGrSim(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'grSim')} && mkdir build && cd build && cmake .. && make`;
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`I'm building grSim...`);
+		lInfo(`Running command ${cmd.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildGrSim] An error occured while building grSim`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`grSim has succesfully been build in ${path.join(settings.RTT_ROOT, 'grSim').yellow}! Run it using ${"./bin/grsim".yellow}`);
+			return resolve();
+		})
+	});	
+}
+
+function buildSSLVision(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-vision')} && ./InstallPackagesUbuntu.sh && make`;
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`I'm building ssl-vision...`);
+		lInfo(`Running command ${cmd.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildSSLVision] An error occured while building ssl-refbox`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`ssl-vision has succesfully been build in ${path.join(settings.RTT_ROOT, 'ssl-vision').yellow}! Run it using ${"./bin/vision".yellow}`);
+			return resolve();
+		})
+	});
+}
+
 function buildSSLRefbox(){
 	return new Promise((resolve, reject) => {
 		l();
@@ -681,7 +745,7 @@ function buildSSLRefbox(){
 			lSuccess(`ssl-refbox has succesfully been build in ${path.join(settings.RTT_ROOT, 'ssl-refbox').yellow}! Run it using ${"./ssl-refbox".yellow}`);
 			return resolve();
 		})
-	})
+	});
 }
 
 function runCatkinMakeInWorkspace(){
@@ -711,6 +775,47 @@ function runCatkinMakeInWorkspace(){
 	});
 }
 
+function removeModemManager(){
+	return new Promise((resolve, reject) => {
+		l();
+		let cmd = `sudo apt purge modemmanager`;
+
+		lInfo(`I'm removing ${"modemmanager".yellow} for you, because it interferes with the basestations`);
+		lInfo(`I'm running the command ${cmd.yellow}`);
+
+		exec(makeShellCommand(cmd), {encoding : 'utf8'}, (err, output) => {
+			if(err){
+				lError(`[removeModemManager] An error occured while removing ${"modemmanager".yellow}!`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+			lSuccess(`${"modemmanager".yellow} has been removed`);
+			return resolve();
+		})
+	})
+}
+
+function addUserToDialoutGroup(){
+	return new Promise((resolve, reject) => {
+		l();
+		let cmd = `sudo adduser ${user} dialout`;
+
+		lInfo(`I'm adding you to the ${"dialout".yellow} group, which is required to communicate with the basestations`);
+		lInfo(`I'm running the command ${cmd.yellow}`);
+
+		exec(makeShellCommand(cmd), {encoding : 'utf8'}, (err, output) => {
+			if(err){
+				lError(`[addUserToDialoutGroup] An error occured while adding you to the ${"dialout".yellow} group!`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+			lSuccess(`You have been added to the ${"dialout".yellow} group`);
+			return resolve();
+		})
+	})
+}
 
 // ============================================================================================== //
 // ============================================================================================== //
