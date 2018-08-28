@@ -226,7 +226,7 @@ function installROS(){
 		
 		// This command can't be run using shellCmd because of the quotes
 		try{
-			execSync(`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list`, { encoding : 'utf8' });
+			execSync(`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'`, { encoding : 'utf8' });
 		}catch(err){
 			lError(`[installROS] An error occured while running ${"1.2 Set up sources.list".yellow}!`);
 			lError(cmd.yellow)
