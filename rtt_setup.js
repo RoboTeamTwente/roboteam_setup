@@ -28,7 +28,7 @@ const dependencies = ""
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
 const isRoot = require('is-root')();
-const makeShellCommand = cmd => `sudo -H gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
+const makeShellCommand = cmd => `gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
 const confirmYes = () => ask("$ Answer: ").toLowerCase().includes('y');
 const confirmNo  = () => ask("$ Answer: ").toLowerCase().includes('n');
 const confirmYesDefault = () => {
@@ -94,8 +94,11 @@ Promise.resolve()
 .then(ensureFiles)
 .then(ensureDependencies)
 .then(() => ensureSSLrepo('grSim'))
+.then(buildGrSimVarTypes)
+.then(buildGrSim)
 .then(() => ensureSSLrepo('ssl-vision'))
-.then(() => ensureSSLrepo('ssl-refbox', false))
+.then(buildSSLVision)
+.then(() => ensureSSLrepo('ssl-refbox'))
 .then(buildSSLRefbox)
 .then(runCatkinMakeInWorkspace)
 
@@ -661,6 +664,89 @@ function ensureSSLrepo(repo, shouldBuild = true){
 	})
 }
 
+function buildGrSimVarTypes(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		// === Installation instructions according to https://github.com/RoboCup-SSL/grSim/blob/master/INSTALL.md
+		let commands = [
+			'cd /tmp',
+			'git clone https://github.com/szi/vartypes.git',
+			'cd vartypes',
+			'mkdir build',
+			'cd build',
+			'cmake ..',
+			'make',
+			'sudo make install'
+		];
+		let hugeCommand = commands.join("; ") + ";";
+		let shellCmd = makeShellCommand(hugeCommand);
+
+		lInfo(`I'm building ssl-vision...`);
+		lInfo(`Running command ${cmd.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildGrSimVarTypes] An error occured while building the VarTypes for grSim`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`The VarTypes for grSim has succesfully been build`);
+			return resolve();
+		})
+	});
+}
+
+function buildGrSim(){
+		return new Promise((resolve, reject) => {
+		l();
+
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'grSim')} && mkdir build && cd build && cmake .. && make`;
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`I'm building grSim...`);
+		lInfo(`Running command ${cmd.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildGrSim] An error occured while building grSim`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`grSim has succesfully been build in ${path.join(settings.RTT_ROOT, 'grSim').yellow}! Run it using ${"./bin/grsim".yellow}`);
+			return resolve();
+		})
+	});	
+}
+
+function buildSSLVision(){
+	return new Promise((resolve, reject) => {
+		l();
+
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-vision')} && ./InstallPackagesUbuntu.sh && make`;
+		let shellCmd = makeShellCommand(cmd);
+
+		lInfo(`I'm building ssl-vision...`);
+		lInfo(`Running command ${cmd.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildSSLVision] An error occured while building ssl-refbox`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`ssl-vision has succesfully been build in ${path.join(settings.RTT_ROOT, 'ssl-vision').yellow}! Run it using ${"./bin/vision".yellow}`);
+			return resolve();
+		})
+	});
+}
+
 function buildSSLRefbox(){
 	return new Promise((resolve, reject) => {
 		l();
@@ -682,7 +768,7 @@ function buildSSLRefbox(){
 			lSuccess(`ssl-refbox has succesfully been build in ${path.join(settings.RTT_ROOT, 'ssl-refbox').yellow}! Run it using ${"./ssl-refbox".yellow}`);
 			return resolve();
 		})
-	})
+	});
 }
 
 function runCatkinMakeInWorkspace(){
