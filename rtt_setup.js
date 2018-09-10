@@ -22,7 +22,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
 const dependencies = ""
-+ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-kinetic-uuid-msgs ros-kinetic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip " // Dependencies copied from software documentation
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential " // Dependencies copied from software documentation
 + "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
 
 const settings = getDefaultSettings();
@@ -179,7 +179,7 @@ function ensureSoftware(){
 
 	// Check if ROS is installed
 	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
-	let rosSetupPath = path.join('/', 'opt', 'ros', 'kinetic', 'setup.bash');
+	let rosSetupPath = path.join('/', 'opt', 'ros', 'melodic', 'setup.bash');
 	lInfo(`Locating file ${rosSetupPath.yellow}`);
 
 	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
@@ -208,18 +208,20 @@ function installROS(){
 	return new Promise((resolve, reject) => {
 
 		l();
-		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/kinetic/Installation/Ubuntu".yellow}`);
+		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/melodic/Installation/Ubuntu".yellow}`);
 
 		let commands = [
+
+
 			// 1.3 Set up your keys
 			`sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116`,
 			// 1.4 Installation
 			`sudo apt-get update`,
 			// Install everything
-			`sudo apt-get install -y ros-kinetic-desktop-full`,
-			// Install these two again, because for some reason, they are sometimes skipped when installing ros-kinetic-desktop-full
-			`sudo apt install -y ros-kinetic-unique-id`,
-			`sudo apt install -y ros-kinetic-uuid-msgs`,
+			`sudo apt-get install -y ros-melodic-desktop-full`,
+			// Install these two again, because for some reason, they are sometimes skipped when installing ros-melodic-desktop-full
+			`sudo apt install -y ros-melodic-unique-id`,
+			`sudo apt install -y ros-melodic-uuid-msgs`,
 			// 1.5 Initialize rosdep
 			`sudo rosdep init`,
 			`rosdep update`
