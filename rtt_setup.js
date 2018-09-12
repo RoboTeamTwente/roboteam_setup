@@ -754,7 +754,7 @@ function buildSSLVision(){
 
 		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
-				lError(`[buildSSLVision] An error occured while building ssl-refbox`);
+				lError(`[buildSSLVision] An error occured while building ssl-vision`);
 				lError(err.message.red);
 				lError(stderr);
 				return reject(stderr);
