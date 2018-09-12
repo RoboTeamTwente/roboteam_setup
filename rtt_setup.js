@@ -57,7 +57,8 @@ if(isRoot){
 lInfo(`Welcome ${user}, to this ${rtt} installation script. Before we continue, please make sure that you (and Emiel) have a cup of ${"coffee".yellow}.`);
 lInfo(`(Other types of beverages are allowed but not recommended nor supported by this ${rtt} installation script)`);
 
-lInfo(`During the next 37 seconds to 41 years, This script will : 
+lInfo(`----- This script installs ROS Melodic Morenia which requires Ubuntu 18.04.1! -----
+ * During the next 37 seconds to 41 years, This script will : 
  * ask if you want to be spiritually guided by soothing music while running this installation script
  * check if you have internet access, which is needed for installing dependencies, cloning repositories etc
  * check if you have installed the required software (e.g ROS, git)
@@ -81,7 +82,6 @@ while(confirmNoDefault()){
 	lInquire("How about now? (y/N)");
 }
 
-
 Promise.resolve()
 .then(inquireSoothingMusic)
 .then(checkInternetAccess)	// Check if we have internet
@@ -96,7 +96,7 @@ Promise.resolve()
 .then(() => ensureSSLrepo('grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
-.then(() => ensureSSLrepo('ssl-vision'))
+.then(installPylon)
 .then(buildSSLVision)
 .then(() => ensureSSLrepo('ssl-refbox'))
 .then(buildSSLRefbox)
@@ -517,6 +517,44 @@ function ensureRttRepos(){
 			})
 		})
 	});
+}
+
+function installPylon() {
+
+return new Promise((resolve, reject) => {
+		l();
+
+
+ let pylonZippedLocation = path.join(__dirname,'files');
+
+		let commands = [
+			  `cd ${pylonZippedLocation}`,
+			  'tar xf pylon-5.0.5.9000-x86_64.tar.gz',
+			  'cd pylon-5.0.5.9000-x86_64',
+			  'sudo tar -C /opt -xzf pylonSDK*.tar.gz',
+			  './setup-usb.sh'
+		];
+
+		let hugeCommand = commands.join("; ") + ";";
+		let shellCmd = makeShellCommand(hugeCommand);
+
+		lInfo(`I'm building pylon...`);
+		lInfo(`Running command ${hugeCommand.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildPylon] An error occured while building Pylon`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`Pylon has succesfully been build`);
+			return resolve();
+		})
+	});
+
+
 }
 
 // ==== Ensure that all the files have been copied to the right locations ==== //
