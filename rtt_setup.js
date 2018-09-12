@@ -101,8 +101,6 @@ Promise.resolve()
 .then(buildSSLVision)
 .then(() => ensureSSLrepo('RoboCup-SSL/ssl-refbox'))
 .then(buildSSLRefbox)
-.then(setSourceRos)
-.then(runCatkinMakeInWorkspace)
 .then(setSourceDevel)
 .then(removeModemManager)
 .then(addUserToDialoutGroup)
@@ -863,29 +861,6 @@ function addUserToDialoutGroup(){
 			return resolve();
 		})
 	})
-}
-
-
-function setSourceRos(){
-	return new Promise((resolve, reject) => {
-		l();
-		let sourceRosCmd = 'source /opt/ros/melodic/setup.bash;';
-
-		lInfo(`I'm sourcing ROS`);
-		lInfo(`Running command ${sourceRosCmd.yellow}`);
-
-		exec(makeShellCommand(sourceRosCmd), (err, stdout, stderr) => {
-			if(err){
-				lError(`[setSourceRos] An error occured while sourcing /opt/ros/meldic/setup.bash`);
-				lError(err.message.red);
-				lError(stderr);
-				return reject(stderr);
-			}
-
-			lSuccess(`sourcing ROS succesful!`);
-			return resolve();
-		})
-	});
 }
 
 function setSourceDevel(){

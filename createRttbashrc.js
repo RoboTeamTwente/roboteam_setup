@@ -2,7 +2,7 @@ const path = require('path');
 
 function create(settings){
 return `
-source /opt/ros/kinetic/setup.bash
+source /opt/ros/melodic/setup.bash
 
 # Export RTT_ROOT, indicating the root of the RoboTeam Twente folder
 export RTT_ROOT=${settings.RTT_ROOT}
