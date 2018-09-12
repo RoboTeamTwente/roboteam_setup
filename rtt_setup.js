@@ -100,7 +100,9 @@ Promise.resolve()
 .then(buildSSLVision)
 .then(() => ensureSSLrepo('ssl-refbox'))
 .then(buildSSLRefbox)
+.then(setSourceRos)
 .then(runCatkinMakeInWorkspace)
+.then(setSourceDevel)
 .then(removeModemManager)
 .then(addUserToDialoutGroup)
 
@@ -818,6 +820,52 @@ function addUserToDialoutGroup(){
 		})
 	})
 }
+
+
+function setSourceRos(){
+	return new Promise((resolve, reject) => {
+		l();
+		let sourceRosCmd = 'source /opt/ros/melodic/setup.bash;';
+
+		lInfo(`I'm sourcing ROS`);
+		lInfo(`Running command ${sourceRosCmd.yellow}`);
+
+		exec(makeShellCommand(sourceRosCmd), (err, stdout, stderr) => {
+			if(err){
+				lError(`[setSourceRos] An error occured while sourcing /opt/ros/meldic/setup.bash`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`sourcing ROS succesful!`);
+			return resolve();
+		})
+	});
+}
+
+function setSourceDevel(){
+	return new Promise((resolve, reject) => {
+		l();
+		let sourceDevelCmd = `source ${settings.RTT_ROOT}/workspace/devel/setup.sh`;
+
+		lInfo(`I'm sourcing devel`);
+		lInfo(`Running command ${sourceDevelCmd.yellow}`);
+
+		exec(makeShellCommand(sourceDevelCmd), (err, stdout, stderr) => {
+			if(err){
+				lError(`[setSourceRos] An error occured while sourcing ${settings.RTT_ROOT}/workspace/devel/setup.sh`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`sourcing devel succesful!`);
+			return resolve();
+		})
+	});
+}
+
 
 // ============================================================================================== //
 // ============================================================================================== //
