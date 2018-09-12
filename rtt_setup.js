@@ -747,11 +747,16 @@ function buildSSLVision(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-vision')} && ./InstallPackagesUbuntu.sh && make`;
-		let shellCmd = makeShellCommand(cmd);
+		let commands = [`cd ${path.join(settings.RTT_ROOT, 'ssl-vision')}`,
+				'mkdir build',
+				'make']
+		
+		let hugeCmd = commands.join("; ") + ";";
+
+		let shellCmd = makeShellCommand(hugeCmd);
 
 		lInfo(`I'm building ssl-vision...`);
-		lInfo(`Running command ${cmd.yellow}`);
+		lInfo(`Running command ${hugeCmd.yellow}`);
 
 		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
