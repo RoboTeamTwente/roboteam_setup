@@ -93,12 +93,13 @@ Promise.resolve()
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureSSLrepo('grSim'))
+.then(() => ensureSSLrepo('RoboCup-SSL/grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(installPylon)
+.then(() => ensureSSLrepo('RoboTeamTwente/ssl-vision'))
 .then(buildSSLVision)
-.then(() => ensureSSLrepo('ssl-refbox'))
+.then(() => ensureSSLrepo('RoboCup-SSL/ssl-refbox'))
 .then(buildSSLRefbox)
 .then(setSourceRos)
 .then(runCatkinMakeInWorkspace)
@@ -643,7 +644,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 		const outputDir = path.join(settings.RTT_ROOT, repo);
 
 		let clone = () => {
-			const cmd = `git clone https://github.com/RoboCup-SSL/${repo}.git ${outputDir}`;
+			const cmd = `git clone https://github.com/${repo}.git ${outputDir}`;
 			lInfo(`Running command ${cmd.yellow}`);
 			lInfo('This may take a while...');
 			exec(cmd, (err, stdout, stderr) => {
