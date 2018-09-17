@@ -93,13 +93,13 @@ Promise.resolve()
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureSSLrepo('RoboCup-SSL/grSim'))
+.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(installPylon)
-.then(() => ensureSSLrepo('RoboTeamTwente/ssl-vision'))
+.then(() => ensureRepo('RoboTeamTwente/ssl-vision', 'ssl-vision'))
 .then(buildSSLVision)
-.then(() => ensureSSLrepo('RoboCup-SSL/ssl-refbox'))
+.then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
 .then(buildSSLRefbox)
 .then(setSourceDevel)
 .then(removeModemManager)
@@ -633,13 +633,13 @@ function ensureDependencies(){
 	})
 }
 
-function ensureSSLrepo(repo, shouldBuild = true){
+function ensureRepo(repo, dest, shouldBuild = true){
 	return new Promise((resolve, reject) => {
 		l();
 
 		lInfo(`I'm installing ${repo.yellow} for you...`);
 
-		const outputDir = path.join(settings.RTT_ROOT, repo);
+		const outputDir = path.join(settings.RTT_ROOT, dest);
 
 		let clone = () => {
 			const cmd = `git clone https://github.com/${repo}.git ${outputDir}`;
@@ -647,7 +647,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 			lInfo('This may take a while...');
 			exec(cmd, (err, stdout, stderr) => {
 				if(err){
-					lError(`[ensureSSLrepo] An error occured while cloning ${repo.yellow}`);
+					lError(`[ensureRepo] An error occured while cloning ${repo.yellow}`);
 					lError(cmd.yellow)
 					lError(stderr.red);
 					return reject(stderr);
@@ -670,7 +670,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 			lInfo(`Removing directory ${outputDir.yellow}...`);
 			fs.remove(outputDir, err => {
 				if(err){
-					l(`[ensureSSLrepo] error while removing ${outputDir.yellow} (${err.code})`);
+					l(`[ensureRepo] error while removing ${outputDir.yellow} (${err.code})`);
 					return reject(err);
 				}
 				lSuccess(`Directory removed!`);
