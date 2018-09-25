@@ -110,7 +110,10 @@ Promise.resolve()
 	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
 	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
 	l();l();
-	printLogoColoured();
+	if(process.stdout.columns < 170)
+		printLogoSmall();
+	else
+		printLogoColoured();
 })
 .catch(err => {
 	l();
