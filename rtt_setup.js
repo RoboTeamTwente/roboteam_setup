@@ -102,6 +102,7 @@ Promise.resolve()
 .then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
 .then(buildSSLRefbox)
 .then(setSourceDevel)
+.then(runCatkinMakeInWorkspace)
 .then(removeModemManager)
 .then(addUserToDialoutGroup)
 
