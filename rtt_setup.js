@@ -22,7 +22,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
 const dependencies = ""
-+ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-kinetic-uuid-msgs ros-kinetic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip " // Dependencies copied from software documentation
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier" // Dependencies copied from software documentation
 + "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
 
 const settings = getDefaultSettings();
@@ -57,7 +57,8 @@ if(isRoot){
 lInfo(`Welcome ${user}, to this ${rtt} installation script. Before we continue, please make sure that you (and Emiel) have a cup of ${"coffee".yellow}.`);
 lInfo(`(Other types of beverages are allowed but not recommended nor supported by this ${rtt} installation script)`);
 
-lInfo(`During the next 37 seconds to 41 years, This script will : 
+lInfo(`----- This script installs ROS Melodic Morenia which requires Ubuntu 18.04.1! -----
+ * During the next 37 seconds to 41 years, This script will : 
  * ask if you want to be spiritually guided by soothing music while running this installation script
  * check if you have internet access, which is needed for installing dependencies, cloning repositories etc
  * check if you have installed the required software (e.g ROS, git)
@@ -81,7 +82,6 @@ while(confirmNoDefault()){
 	lInquire("How about now? (y/N)");
 }
 
-
 Promise.resolve()
 .then(inquireSoothingMusic)
 .then(checkInternetAccess)	// Check if we have internet
@@ -93,13 +93,15 @@ Promise.resolve()
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureSSLrepo('grSim'))
+.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
-.then(() => ensureSSLrepo('ssl-vision'))
+.then(installPylon)
+.then(() => ensureRepo('RoboTeamTwente/ssl-vision', 'ssl-vision'))
 .then(buildSSLVision)
-.then(() => ensureSSLrepo('ssl-refbox'))
+.then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
 .then(buildSSLRefbox)
+.then(setSourceDevel)
 .then(runCatkinMakeInWorkspace)
 .then(removeModemManager)
 .then(addUserToDialoutGroup)
@@ -109,7 +111,10 @@ Promise.resolve()
 	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
 	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
 	l();l();
-	printLogoColoured();
+	if(process.stdout.columns < 170)
+		printLogoSmall();
+	else
+		printLogoColoured();
 })
 .catch(err => {
 	l();
@@ -515,6 +520,44 @@ function ensureRttRepos(){
 	});
 }
 
+function installPylon() {
+
+return new Promise((resolve, reject) => {
+		l();
+
+
+ let pylonZippedLocation = path.join(__dirname,'files');
+
+		let commands = [
+			  `cd ${pylonZippedLocation}`,
+			  'tar xf pylon-5.0.5.9000-x86_64.tar.gz',
+			  'cd pylon-5.0.5.9000-x86_64',
+			  'sudo tar -C /opt -xzf pylonSDK*.tar.gz',
+			  './setup-usb.sh'
+		];
+
+		let hugeCommand = commands.join("; ") + ";";
+		let shellCmd = makeShellCommand(hugeCommand);
+
+		lInfo(`I'm building pylon...`);
+		lInfo(`Running command ${hugeCommand.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[buildPylon] An error occured while building Pylon`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`Pylon has succesfully been build`);
+			return resolve();
+		})
+	});
+
+
+}
+
 // ==== Ensure that all the files have been copied to the right locations ==== //
 function ensureFiles(){
 
@@ -592,21 +635,21 @@ function ensureDependencies(){
 	})
 }
 
-function ensureSSLrepo(repo, shouldBuild = true){
+function ensureRepo(repo, dest, shouldBuild = true){
 	return new Promise((resolve, reject) => {
 		l();
 
 		lInfo(`I'm installing ${repo.yellow} for you...`);
 
-		const outputDir = path.join(settings.RTT_ROOT, repo);
+		const outputDir = path.join(settings.RTT_ROOT, dest);
 
 		let clone = () => {
-			const cmd = `git clone https://github.com/RoboCup-SSL/${repo}.git ${outputDir}`;
+			const cmd = `git clone https://github.com/${repo}.git ${outputDir}`;
 			lInfo(`Running command ${cmd.yellow}`);
 			lInfo('This may take a while...');
 			exec(cmd, (err, stdout, stderr) => {
 				if(err){
-					lError(`[ensureSSLrepo] An error occured while cloning ${repo.yellow}`);
+					lError(`[ensureRepo] An error occured while cloning ${repo.yellow}`);
 					lError(cmd.yellow)
 					lError(stderr.red);
 					return reject(stderr);
@@ -629,7 +672,7 @@ function ensureSSLrepo(repo, shouldBuild = true){
 			lInfo(`Removing directory ${outputDir.yellow}...`);
 			fs.remove(outputDir, err => {
 				if(err){
-					l(`[ensureSSLrepo] error while removing ${outputDir.yellow} (${err.code})`);
+					l(`[ensureRepo] error while removing ${outputDir.yellow} (${err.code})`);
 					return reject(err);
 				}
 				lSuccess(`Directory removed!`);
@@ -704,15 +747,20 @@ function buildSSLVision(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-vision')} && ./InstallPackagesUbuntu.sh && make`;
-		let shellCmd = makeShellCommand(cmd);
+		let commands = [`cd ${path.join(settings.RTT_ROOT, 'ssl-vision')}`,
+				'mkdir build',
+				'make']
+		
+		let hugeCmd = commands.join("; ") + ";";
+
+		let shellCmd = makeShellCommand(hugeCmd);
 
 		lInfo(`I'm building ssl-vision...`);
-		lInfo(`Running command ${cmd.yellow}`);
+		lInfo(`Running command ${hugeCmd.yellow}`);
 
 		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
-				lError(`[buildSSLVision] An error occured while building ssl-refbox`);
+				lError(`[buildSSLVision] An error occured while building ssl-vision`);
 				lError(err.message.red);
 				lError(stderr);
 				return reject(stderr);
@@ -816,6 +864,29 @@ function addUserToDialoutGroup(){
 		})
 	})
 }
+
+function setSourceDevel(){
+	return new Promise((resolve, reject) => {
+		l();
+		let sourceDevelCmd = `source ${settings.RTT_ROOT}/workspace/devel/setup.sh`;
+
+		lInfo(`I'm sourcing devel`);
+		lInfo(`Running command ${sourceDevelCmd.yellow}`);
+
+		exec(makeShellCommand(sourceDevelCmd), (err, stdout, stderr) => {
+			if(err){
+				lError(`[setSourceRos] An error occured while sourcing ${settings.RTT_ROOT}/workspace/devel/setup.sh`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`sourcing devel succesful!`);
+			return resolve();
+		})
+	});
+}
+
 
 // ============================================================================================== //
 // ============================================================================================== //
