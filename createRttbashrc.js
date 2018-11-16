@@ -15,6 +15,11 @@ export ROSCONSOLE_CONFIG_FILE=${path.join(settings.RTT_ROOT, 'rosconsole.config'
 # source the setup for the workspace
 source ${path.join(settings.RTT_ROOT, 'workspace', 'devel', 'setup.bash')}
 
+# locales for grsim
+export LANG=en_US.UTF-8
+export LC_CTYPE=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
 function rtt_build() {
     (
         # cd directly to the workspace where the repos are located
