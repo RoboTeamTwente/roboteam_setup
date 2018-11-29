@@ -21,8 +21,9 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
-const dependencies = "" + "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev" // Dependencies copied from software documentation
-+ "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev lcov gcovr"; // grSim dependencies
+const dependencies = ""
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev" // Dependencies copied from software documentation
++ "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
@@ -92,7 +93,7 @@ Promise.resolve()
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(installPylon)
@@ -620,7 +621,7 @@ function ensureDependencies(){
 		l();
 
 		lInfo(`I'm ensuring that you have installed all the required dependencies. This might take a while...`);
-		const cmd = `sudo apt update && sudo apt install ${dependencies}`;
+		const cmd = `sudo apt update && sudo apt install -y ${dependencies}`;
 		lInfo(cmd.yellow);
 		exec(makeShellCommand(cmd), err => {
 			if(err){
