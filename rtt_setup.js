@@ -22,7 +22,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
 const dependencies = ""
-+ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev" // Dependencies copied from software documentation
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt4-dev-tools qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev " // Dependencies copied from software documentation
 + "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
 
 const settings = getDefaultSettings();
@@ -85,11 +85,12 @@ while(confirmNoDefault()){
 Promise.resolve()
 .then(inquireSoothingMusic)
 .then(checkInternetAccess)	// Check if we have internet
+.then(ensureDependencies)
 .then(ensureSoftware)		// Check if required software is installed
 .then(inquireRTT_ROOT)		// Check for RTT_ROOT
 .then(ensureRootDir)		// Make sure the folder exists
 .then(ensureRttbashrc)		// Write the rtt_bashrc file
-.then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
+.then(ensureBashrc)		// add rtt_bashrc to ~/.bashrc
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
@@ -431,11 +432,12 @@ function ensureRttRepos(){
 			{ repo : "roboteam_utils"	},
 			{ repo : "roboteam_vision"	},
 			{ repo : "roboteam_world"	},
-			{ repo : "roboteam_robothub"},
+			{ repo : "roboteam_robothub"	},
 			{ repo : "roboteam_input"	}, 
-			{ repo : "roboteam_tactics"	},
-			{ repo : "roboteam_rqt_view", branch : 'enhance_tester_panel'},
-			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
+			{ repo : "roboteam_ai"		},
+			{ repo : "roboteam_rqt_view"	, branch : 'enhance_tester_panel'},
+			{ repo : "projects_node"	, dir : settings.RTT_ROOT },
+			{ repo : "behavior3editor"	}
 		];
 
 		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
