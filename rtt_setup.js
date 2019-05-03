@@ -22,7 +22,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
 const dependencies = ""
-+ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt4-dev-tools qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev " // Dependencies copied from software documentation
++ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt4-dev-tools qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier libsdl2-ttf-dev lcov " // Dependencies copied from software documentation
 + "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
 
 const settings = getDefaultSettings();
@@ -437,7 +437,7 @@ function ensureRttRepos(){
 			{ repo : "roboteam_ai"		},
 			{ repo : "roboteam_rqt_view"	, branch : 'enhance_tester_panel'},
 			{ repo : "projects_node"	, dir : settings.RTT_ROOT },
-			{ repo : "behavior3editor"	}
+			{ repo : "behavior3editor"	, dir : settings.RTT_ROOT }
 		];
 
 		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
