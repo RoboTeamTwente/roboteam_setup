@@ -21,7 +21,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
-const dependencies = "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev";
+const dependencies = "libsdl2-2.0-0 libsdl2-dev libsdl2-ttf-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev";
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
