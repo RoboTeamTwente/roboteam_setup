@@ -21,9 +21,7 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
-const dependencies = ""
-+ "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier" // Dependencies copied from software documentation
-+ "git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev"; // grSim dependencies
+const dependencies = "libsdl2-2.0-0 libsdl2-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev";
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
@@ -93,7 +91,7 @@ Promise.resolve()
 .then(ensureRttRepos)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
+.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(installPylon)
@@ -184,7 +182,7 @@ function ensureSoftware(){
 
 	// Check if ROS is installed
 	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
-	let rosSetupPath = path.join('/', 'opt', 'ros', 'kinetic', 'setup.bash');
+	let rosSetupPath = path.join('/', 'opt', 'ros', 'melodic', 'setup.bash');
 	lInfo(`Locating file ${rosSetupPath.yellow}`);
 
 	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
@@ -213,18 +211,18 @@ function installROS(){
 	return new Promise((resolve, reject) => {
 
 		l();
-		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/kinetic/Installation/Ubuntu".yellow}`);
+		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/melodic/Installation/Ubuntu".yellow}`);
 
 		let commands = [
 			// 1.3 Set up your keys
-			`sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net:80 --recv-key 421C365BD9FF1F717815A3895523BAEEB01FA116`,
+			`sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654`,
 			// 1.4 Installation
 			`sudo apt-get update`,
 			// Install everything
-			`sudo apt-get install -y ros-kinetic-desktop-full`,
-			// Install these two again, because for some reason, they are sometimes skipped when installing ros-kinetic-desktop-full
-			`sudo apt install -y ros-kinetic-unique-id`,
-			`sudo apt install -y ros-kinetic-uuid-msgs`,
+			`sudo apt-get install -y ros-melodic-desktop-full`,
+			// Install these two again, because for some reason, they are sometimes skipped when installing ros-melodic-desktop-full
+			`sudo apt install -y ros-melodic-unique-id`,
+			`sudo apt install -y ros-melodic-uuid-msgs`,
 			// 1.5 Initialize rosdep
 			`sudo rosdep init`,
 			`rosdep update`
@@ -433,7 +431,7 @@ function ensureRttRepos(){
 			{ repo : "roboteam_world"	},
 			{ repo : "roboteam_robothub"},
 			{ repo : "roboteam_input"	}, 
-			{ repo : "roboteam_tactics"	},
+			{ repo : "roboteam_ai"	},
 			{ repo : "roboteam_rqt_view", branch : 'enhance_tester_panel'},
 			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
 		];
