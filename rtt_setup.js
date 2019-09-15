@@ -10,6 +10,7 @@ const exec = require('child_process').exec;
 const execSync = require('child_process').execSync;
 const ask = require('readline-sync').question;
 const commandExistsSync = require('command-exists').sync
+const semver = require('semver');
 
 // ==== Logging functions
 const lInfo    = (...args) => console.log("[Info   ]".blue,   ...args);
@@ -21,7 +22,12 @@ const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler
 
 // ==== Some useful constants
 const rtt = "RoboTeam Twente".red
-const dependencies = "libsdl2-2.0-0 libsdl2-dev libsdl2-ttf-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-rosinstall-generator python-wstool build-essential ros-melodic-unique-identifier lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libprotobuf-dev protobuf-compiler libode-dev libboost-dev";
+let dependencies = "libsdl2-2.0-0 libsdl2-dev libsdl2-ttf-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-wstool build-essential lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libode-dev libboost-dev";
+
+/* CMake 3.10   */ dependencies += "cmake"
+/* Protobuf 	*/ dependencies += "autoconf automake libtool curl make g++ unzip"
+/* ZMQ 			*/ dependencies += "libzmq3-dev libzmqpp-dev"
+/* Armadillo    */ dependencies += "libarmadillo-dev"
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
@@ -79,6 +85,10 @@ lInquire('Are you ready to continue? (y/N)');
 while(confirmNoDefault()){
 	lInquire("How about now? (y/N)");
 }
+
+Promise.resolve().then(installProtobuf)
+
+return
 
 Promise.resolve()
 .then(inquireSoothingMusic)
@@ -205,54 +215,6 @@ function ensureSoftware(){
 	}
 
 	return Promise.resolve();
-}
-
-function installROS(){
-	return new Promise((resolve, reject) => {
-
-		l();
-		lInfo(`I will now install ${"ROS".yellow} for you. If you want to do this by yourself, follow this guide : ${"http://wiki.ros.org/melodic/Installation/Ubuntu".yellow}`);
-
-		let commands = [
-			// 1.3 Set up your keys
-			`sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654`,
-			// 1.4 Installation
-			`sudo apt-get update`,
-			// Install everything
-			`sudo apt-get install -y ros-melodic-desktop-full`,
-			// Install these two again, because for some reason, they are sometimes skipped when installing ros-melodic-desktop-full
-			`sudo apt install -y ros-melodic-unique-id`,
-			`sudo apt install -y ros-melodic-uuid-msgs`,
-			// 1.5 Initialize rosdep
-			`sudo rosdep init`,
-			`rosdep update`
-		];
-
-		let hugeCmd = commands.join("; ") + ";";
-		let shellCmd = makeShellCommand(hugeCmd);
-		
-		// This command can't be run using shellCmd because of the quotes
-		try{
-			execSync(`sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'`, { encoding : 'utf8' });
-		}catch(err){
-			lError(`[installROS] An error occured while running ${"1.2 Set up sources.list".yellow}!`);
-			lError(cmd.yellow)
-			lError(err.message.red)
-			return reject(err.message);
-		}		
-
-		exec(shellCmd, {encoding : 'utf8'}, err => {
-			if(err){
-				lError(`[installROS] An error occured while installing ${"ROS".yellow}!`);
-				lError(hugeCmd.yellow)
-				lError(err.message.red)
-				return reject(err);
-			}else{
-				lSuccess(`${"ROS"} installed succesfully!`);
-				return resolve();
-			}
-		});	
-	});
 }
 
 // ==== Get the directory RTT_ROOT for all of the RoboTeam Twente stuff ==== //
@@ -518,13 +480,64 @@ function ensureRttRepos(){
 	});
 }
 
-function installPylon() {
+function installProtobuf() {
 
-return new Promise((resolve, reject) => {
+	// Check if Protobuf is installed
+	lInfo(`I'm checking if you've installed ${"Protobuf".yellow}...`)
+	if(commandExistsSync('protoc')){
+		// Check if the good version is installed. "protoc --version" returns something like "libprotoc 3.9.1"
+		let version = execSync('protoc --version', {encoding : 'UTF8'}).split(' ')[1].trim()
+		if(semver.gte(version, "3.9.1")){
+			lSuccess(`Protobuf is installed at ${execSync('which protoc', {encoding : 'UTF8'}).trim().yellow}!`);
+			return Promise.resolve()
+		}else{
+			lError(`Hold up! ${"Protobuf".yellow} its version is too low! ${version.yellow} < ${"3.9.1".yellow}`);
+		}
+	}else{
+		lError(`Hold up! ${"Protobuf".yellow} doesn't seem to be installed!`);
+	}
+
+	return new Promise((resolve, reject) => {
 		l();
 
+		let commands = [
+			`git clone https://github.com/protocolbuffers/protobuf.git`,
+			`cd protobuf`,
+			`git submodule update --init --recursive`,
+			`./autogen.sh`,
+			`./configure`,
+			`make -j4`,
+			`make check -j4`,
+			`sudo make install`,
+			`sudo ldconfig`
+		];
 
- let pylonZippedLocation = path.join(__dirname,'files');
+		let hugeCommand = commands.join(" && ") + ";";
+		let shellCmd = makeShellCommand(hugeCommand);
+
+		lInfo(`I'm building Protobuf...`);
+		lInfo(`Running command ${hugeCommand.yellow}`);
+
+		exec(shellCmd, (err, stdout, stderr) => {
+			if(err){
+				lError(`[installProtobuf] An error occured while installing Protobuf`);
+				lError(err.message.red);
+				lError(stderr);
+				return reject(stderr);
+			}
+
+			lSuccess(`Protobuf has succesfully been build`);
+			return resolve();
+		})
+	});
+}
+
+function installPylon() {
+
+	return new Promise((resolve, reject) => {
+		l();
+
+		let pylonZippedLocation = path.join(__dirname,'files');
 
 		let commands = [
 			  `cd ${pylonZippedLocation}`,
@@ -552,8 +565,6 @@ return new Promise((resolve, reject) => {
 			return resolve();
 		})
 	});
-
-
 }
 
 // ==== Ensure that all the files have been copied to the right locations ==== //
