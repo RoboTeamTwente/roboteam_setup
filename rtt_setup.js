@@ -98,7 +98,7 @@ Promise.resolve()
 .then(ensureRootDir)		// Make sure the folder exists
 .then(ensureRttbashrc)		// Write the rtt_bashrc file
 .then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
-.then(ensureRttRepos)
+.then(ensureRoboTeamSuite)
 .then(ensureFiles)
 .then(ensureDependencies)
 .then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
@@ -188,30 +188,6 @@ function ensureSoftware(){
 		return Promise.reject(`[ensureSoftware] ${"GIT".yellow} does not seem to be installed! please visit ${url.yellow}`);
 	}else{
 		lSuccess(`Git seems to be installed at ${execSync('which git', {encoding : 'UTF8'}).trim().yellow}!`);
-	}
-
-	// Check if ROS is installed
-	lInfo(`I'm checking if you've installed ${"ROS".yellow}...`)
-	let rosSetupPath = path.join('/', 'opt', 'ros', 'melodic', 'setup.bash');
-	lInfo(`Locating file ${rosSetupPath.yellow}`);
-
-	url = "http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment";
-	if(!fs.existsSync(rosSetupPath)){
-		lError(`Hold up! ${"ROS".yellow} doesn't seem to be installed, because the environmental variable ${"ROS_ROOT".yellow} is not set!`);
-		lInquire(`Do you want me to install ${"ROS".yellow} for you? (y/N)`);
-		// User wants to install ROS manually
-		if(confirmNoDefault()){
-			lInfo(`I will try to open up the website for you, which will tell you how to install ${"ROS".yellow}`);
-			lInfo(url.yellow);
-			execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
-			return Promise.reject(`[ensureSoftware] ${"ROS".yellow} does not seem to be installed! please visit ${url.yellow}`);
-		}else
-		// User wants us to install ROS
-		{
-			return installROS();
-		}
-	}else{
-		lSuccess(`ROS seems to be installed!`);
 	}
 
 	return Promise.resolve();
@@ -382,31 +358,16 @@ function ensureBashrc(){
 }
 
 // ==== Ensure that all the relevant git repos exist in RTT_ROOT/workspace/src ==== //
-function ensureRttRepos(){
+function ensureRoboTeamSuite(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		const repos = [
-			{ repo : "roboteam_msgs"	},
-			{ repo : "roboteam_utils"	},
-			{ repo : "roboteam_vision"	},
-			{ repo : "roboteam_world"	},
-			{ repo : "roboteam_robothub"},
-			{ repo : "roboteam_input"	}, 
-			{ repo : "roboteam_ai"	},
-			{ repo : "roboteam_rqt_view", branch : 'enhance_tester_panel'},
-			{ repo : "projects_node"	, dir : settings.RTT_ROOT }
-		];
+		// { repo : "projects_node"	, dir : settings.RTT_ROOT }
 
 		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
 		lInfo(`I'm ensuring that the repository directory ${settings.RTT_REPOS.yellow} exists...`);
-		fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
-			if(err)
-				return reject(`[ensureRttRepos] An error occured while creating ${settings.RTT_REPOS.yellow} (${err.code})`);
-			if(dir) lInfo(`Directory ${settings.RTT_REPOS.yellow} created`);
-			else lInfo(`Directory ${settings.RTT_REPOS.yellow} already exists`);
-			// ==== Directory exists. Start pulling in repos
-
+		// fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
+		{
 			// Ask if user wants to use SSH
 			lInquire("Would you like to use SSH to clone the git reposities? (Y/n)");
 			let useSSH = confirmYesDefault();
@@ -428,7 +389,7 @@ function ensureRttRepos(){
 					try{
 						execSync(cmd, { encoding : 'utf8' });
 					}catch(err){
-						lError(`[ensureRttRepos] An error occured while adding ${"github.com".yellow} to the file ${known_hostsPath.yellow}!`);
+						lError(`[ensureRoboTeamSuite] An error occured while adding ${"github.com".yellow} to the file ${known_hostsPath.yellow}!`);
 						lError(cmd.yellow)
 						lError(err.message.red)
 						return reject(err.message);
@@ -440,32 +401,31 @@ function ensureRttRepos(){
 				l();
 			}
 
-			lInfo(`Cloning repositories. This might take a while...`);
+			lInfo(`Cloning roboteam_suite...`);
 			// ==== Create promises for cloning all the repositories. Default to RTT_ROOT/workspace/src/. Default to master branch
-			let promises = _.map(repos, ({ repo, dir = settings.RTT_REPOS, branch = "master" }) => {
-				return new Promise((resolve, reject) => {
-					let outputDir= path.join(dir, repo);
-					let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
-					let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git --branch ${branch} ${outputDir}`;
-					let cmd = useSSH ? cmdSsh : cmdHttps;
-					
-					if(fs.existsSync(outputDir)){
-						lWarn(`Directory ${outputDir.yellow} already exists. Cloning into a non-empty directory is not possible. Skipping ${repo.yellow}`);
+			let repoPromise = new Promise((resolve, reject) => {
+				let repo = "roboteam_suite"
+				let outputDir= path.join(settings.RTT_ROOT, repo);
+				let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
+				let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
+				let cmd = useSSH ? cmdSsh : cmdHttps;
+				
+				if(fs.existsSync(outputDir)){
+					lWarn(`Directory ${outputDir.yellow} already exists. Cloning into a non-empty directory is not possible. Skipping ${repo.yellow}`);
+					return resolve();
+				}
+
+				exec(cmd, {encoding : 'utf8'}, err => {
+					if(err){
+						lError(`[ensureRoboTeamSuite] An error occured while cloning ${repo.yellow}!`);
+						lError(cmd.yellow)
+						lError(err.message.red)
+						return reject(err);
+					}else{
+						lSuccess(`Repository ${repo.yellow} cloned succesfully!`);
 						return resolve();
 					}
-
-					exec(cmd, {encoding : 'utf8'}, err => {
-						if(err){
-							lError(`[ensureRttRepos] An error occured while cloning ${repo.yellow}!`);
-							lError(cmd.yellow)
-							lError(err.message.red)
-							return reject(err);
-						}else{
-							lSuccess(`Repository ${repo.yellow} cloned succesfully!`);
-							return resolve();
-						}
-					})	
-				})
+				})	
 			})
 			
 			// ==== Wait for all the repositories to be cloned
@@ -474,14 +434,14 @@ function ensureRttRepos(){
 				return resolve();
 			}).catch(err => {
 				lError(`An error occured while cloning all the repos!`);
-				return reject(`[ensureRttRepos] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
+				return reject(`[ensureRoboTeamSuite] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
 			})
 		})
 	});
 }
 
-function installProtobuf() {
 
+function installProtobuf() {
 	// Check if Protobuf is installed
 	lInfo(`I'm checking if you've installed ${"Protobuf".yellow}...`)
 	if(commandExistsSync('protoc')){
@@ -526,7 +486,7 @@ function installProtobuf() {
 				return reject(stderr);
 			}
 
-			lSuccess(`Protobuf has succesfully been build`);
+			lSuccess(`Protobuf has succesfully been installed`);
 			return resolve();
 		})
 	});
@@ -915,8 +875,7 @@ function getDefaultSettings(){
 		HOME,
 		RTT_ROOT,
 		RTT_BASHRC : path.join(RTT_ROOT, 'rtt_bashrc'),
-		RTT_WORKSPACE : path.join(RTT_ROOT, 'workspace'),
-		RTT_REPOS  : path.join(RTT_ROOT, 'workspace', 'src'),
+		RTT_REPOS  : path.join(RTT_ROOT),
 		settingsChanged : false,
 
 		setRTT_ROOT : function(rtt_root){
@@ -925,12 +884,6 @@ function getDefaultSettings(){
 			
 			this.RTT_BASHRC = path.join(this.RTT_ROOT, 'rtt_bashrc');
 			lInfo(`[settings] Changing RTT_BASHRC to ${this.RTT_BASHRC.yellow}`);
-			
-			this.RTT_WORKSPACE = path.join(this.RTT_ROOT, 'workspace');
-			lInfo(`[settings] Changing RTT_WORKSPACE to ${this.RTT_WORKSPACE.yellow}`);
-
-			this.RTT_REPOS = path.join(this.RTT_ROOT, 'workspace', 'src'),
-			lInfo(`[settings] Changing RTT_REPOS to ${this.RTT_REPOS.yellow}`);
 		}
 	}
 }
