@@ -50,9 +50,13 @@ const rtt = "RoboTeam Twente".red
 let dependencies = "";
 
 /* CMake 3.10   */ dependencies += " cmake"
+/* SSL-Vision   */ dependencies += " cmake g++ libeigen3-dev freeglut3-dev qt5-default libopencv-dev"
+/* SSL-Refbox 	*/ dependencies += " cmake g++ git libgtkmm-2.4-dev"
+/* grSim 		*/ dependencies += " build-essential cmake qt5-default libqt5opengl5-dev libgl1-mesa-dev libglu1-mesa-dev libode-dev"
 /* Protobuf 	*/ dependencies += " autoconf automake libtool curl make g++ unzip"
 /* ZMQ 			*/ dependencies += " libzmq3-dev libzmqpp-dev"
 /* Armadillo    */ dependencies += " libarmadillo-dev"
+/* RTT 			*/ dependencies += " libboost-dev libgtest-dev"
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
@@ -80,7 +84,6 @@ sleepFor(2000)
 lInfo(`During the next 37 seconds to 41 years, This script will : 
  * ask if you want to be spiritually guided by soothing music while running this installation script
  * check if you have internet access, which is needed for installing dependencies, cloning repositories etc
- * check if you have installed the required software (e.g ROS, git)
  * ask in which directory you want to install all the ${rtt} software, named ${"RTT_ROOT".yellow}
  * create the ${"RTT_ROOT".yellow} directory
  * create the ${"rtt_bashrc".yellow} file, which will source your workspace, give you useful functions, etc
@@ -103,20 +106,27 @@ lInquire('Are you ready to continue? (y/N)');
 
 Promise.resolve()
 .then(checkInternetAccess)	// Check if we have internet
-// .then(ensureDependencies)
+.then(ensureDependencies)
+.then(installProtobuf)
+.then(ensureGit)			
 .then(inquireRTT_ROOT)		// Check for RTT_ROOT
 .then(ensureRootDir)		// Make sure the folder exists
 // .then(ensureRttbashrc)		// Write the rtt_bashrc file
 // .then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
 // .then(ensureFiles)
-// .then(ensureRoboTeamSuite)
+.then(ensureRoboTeamSuite)
 
-.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
-.then(() => ensureRepo('RoboTeamTwente/ssl-vision', 'ssl-vision'))
+.then(installPylon)
+// .then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
+.then(() => ensureRepo('RoboCup-SSL/ssl-vision', 'ssl-vision'))
 .then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
 
-.then(installProtobuf)
-// .then(ensureGit)			
+.then(buildSSLVision)
+.then(buildGrSimVarTypes)
+.then(buildGrSim)
+.then(buildSSLRefbox)
+
 
 return
 
@@ -131,7 +141,8 @@ Promise.resolve()
 .then(ensureRoboTeamSuite)
 .then(ensureFiles)
 .then(ensureDependencies)
-.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+// .then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(installPylon)
@@ -426,8 +437,8 @@ function ensureRoboTeamSuite(){
 		let repoPromise = new Promise((resolve, reject) => {
 			let repo = "roboteam_suite"
 			let outputDir= path.join(settings.RTT_REPOS, repo);
-			let cmdSsh   = `git clone --recursive-submodule git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
-			let cmdHttps = `git clone --recursive-submodule https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
+			let cmdSsh   = `git clone --recurse-submodule git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
+			let cmdHttps = `git clone --recurse-submodule https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
 			let cmd = useSSH ? cmdSsh : cmdHttps;
 			
 			if(fs.existsSync(outputDir)){
@@ -530,12 +541,12 @@ function installPylon() {
 		let hugeCommand = commands.join("; ") + ";";
 		let shellCmd = makeShellCommand(hugeCommand);
 
-		lInfo(`I'm building pylon...`);
+		lInfo(`Pylon allows SSL-Vision to work with our Basler cameras. I'm building Pylon...`);
 		lInfo(`Running command ${hugeCommand.yellow}`);
 
 		exec(shellCmd, (err, stdout, stderr) => {
 			if(err){
-				lError(`[buildPylon] An error occured while building Pylon`);
+				lError(`[installPylon] An error occured while building Pylon`);
 				lError(err.message.red);
 				lError(stderr);
 				return reject(stderr);
@@ -674,19 +685,18 @@ function buildGrSimVarTypes(){
 
 		// === Installation instructions according to https://github.com/RoboCup-SSL/grSim/blob/master/INSTALL.md
 		let commands = [
-			'cd /tmp',
-			'git clone https://github.com/szi/vartypes.git',
+			'git clone https://github.com/jpfeltracco/vartypes.git',
 			'cd vartypes',
 			'mkdir build',
 			'cd build',
 			'cmake ..',
-			'make',
+			'make -j4',
 			'sudo make install'
 		];
 		let hugeCommand = commands.join("; ") + ";";
 		let shellCmd = makeShellCommand(hugeCommand);
 
-		lInfo(`I'm building VarTypes...`);
+		lInfo(`VarTypes is needed to run grSim. I'm building VarTypes...`);
 		lInfo(`Running command ${hugeCommand.yellow}`);
 
 		exec(shellCmd, (err, stdout, stderr) => {
@@ -707,7 +717,7 @@ function buildGrSim(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		let cmd = `cd ${path.join(settings.RTT_ROOT, 'grSim')} && mkdir build && cd build && cmake .. && make`;
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'grSim')} && rm -rf build && mkdir build && cd build && cmake .. && make -j4 && sleep 5`;
 		let shellCmd = makeShellCommand(cmd);
 
 		lInfo(`I'm building grSim...`);
@@ -731,11 +741,13 @@ function buildSSLVision(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		let commands = [`cd ${path.join(settings.RTT_ROOT, 'ssl-vision')}`,
-				'mkdir build',
-				'make']
+		let commands = [
+			`cd ${path.join(settings.RTT_ROOT, 'ssl-vision')}`,
+			'mkdir build', 'cd build',
+			'cmake .. -DUSE_QT5=true -DUSE_PYLON=true -DUSE_DC1394=true -DUSE_V4L=true',
+			'make -j4']
 		
-		let hugeCmd = commands.join("; ") + ";";
+		let hugeCmd = commands.join(" && ") + ";";
 
 		let shellCmd = makeShellCommand(hugeCmd);
 
@@ -760,7 +772,7 @@ function buildSSLRefbox(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-refbox')} && sudo ./installDeps.sh && make`;
+		let cmd = `cd ${path.join(settings.RTT_ROOT, 'ssl-refbox')} && make`;
 		let shellCmd = makeShellCommand(cmd);
 
 		lInfo(`I'm building ssl-refbox...`);
@@ -775,33 +787,6 @@ function buildSSLRefbox(){
 			}
 
 			lSuccess(`ssl-refbox has succesfully been build in ${path.join(settings.RTT_ROOT, 'ssl-refbox').yellow}! Run it using ${"./ssl-refbox".yellow}`);
-			return resolve();
-		})
-	});
-}
-
-function runCatkinMakeInWorkspace(){
-	return new Promise((resolve, reject) => {
-		l();
-
-		lInfo(`I'm checking if directory ${settings.RTT_REPOS.yellow} exists...`);
-		if(!fs.existsSync(settings.RTT_REPOS)){
-			lError(`Required directory ${settings.RTT_REPOS.yellow} does not exist!`)
-			return reject(`[runCatkinMakeInWorkspace] Required directory ${settings.RTT_REPOS.yellow} does not exist!`);
-		}
-
-		let cmd = "source ~/.bashrc; rtt_make; source ~/.bashrc; rtt_make; sleep 2;";
-		let shellCmd = makeShellCommand(cmd);
-
-		lInfo(`For information on why I'm running ${"catkin_make".yellow}, please visit ${"http://wiki.ros.org/ROS/Tutorials/InstallingandConfiguringROSEnvironment".yellow}`);
-		lInfo(`I'm running the commands ${cmd.yellow}. This might take while...`);
-
-		exec(shellCmd, {encoding : 'utf8'}, (err, output) => {
-			if(err){
-				lWarn("The command failed, but that is expected (for now)");
-				lWarn(err)
-			}
-			lSuccess(`${"catkin_make".yellow} was ran in ${settings.RTT_WORKSPACE.yellow}`);
 			return resolve();
 		})
 	});
@@ -849,35 +834,13 @@ function addUserToDialoutGroup(){
 	})
 }
 
-function setSourceDevel(){
-	return new Promise((resolve, reject) => {
-		l();
-		let sourceDevelCmd = `source ${settings.RTT_ROOT}/workspace/devel/setup.sh`;
-
-		lInfo(`I'm sourcing devel`);
-		lInfo(`Running command ${sourceDevelCmd.yellow}`);
-
-		exec(makeShellCommand(sourceDevelCmd), (err, stdout, stderr) => {
-			if(err){
-				lError(`[setSourceRos] An error occured while sourcing ${settings.RTT_ROOT}/workspace/devel/setup.sh`);
-				lError(err.message.red);
-				lError(stderr);
-				return reject(stderr);
-			}
-
-			lSuccess(`sourcing devel succesful!`);
-			return resolve();
-		})
-	});
-}
-
 
 // ============================================================================================== //
 // ============================================================================================== //
 
 function printEnvironmentalVariables(){
 	_.each(process.env, (val, key) => {
-		l(len(key, 40, "_"), val);
+		l(len(key, 40, "_"), val);	
 	})
 }
 
