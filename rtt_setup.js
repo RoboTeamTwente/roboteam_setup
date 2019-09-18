@@ -1,6 +1,7 @@
 process.stdout.write('\033c');
 l = console.log
 
+
 // ==== Require all the needed libraries ==== //
 const colors = require('colors');
 const _ = require('lodash');
@@ -12,27 +13,26 @@ const ask = require('readline-sync').question;
 const commandExistsSync = require('command-exists').sync
 const semver = require('semver');
 
+
 // ==== Logging functions
-const lInfo    = (...args) => console.log("[Info   ]".blue,   ...args);
-const lError   = (...args) => console.log("[Error  ]".red,    ...args);
-const lWarn    = (...args) => console.log("[Warning]".yellow, ...args);
-const lSuccess = (...args) => console.log("[Success]".green,  ...args);
-const lInquire = (...args) => console.log("[Inquire]".cyan,   ...args);
+/* Buzy sleep function to somewhat reduce the rate at which messages come through. NOTE considered bad practice! */
+function sleepFor( sleepDuration ){
+    var now = new Date().getTime();
+    while(new Date().getTime() < now + sleepDuration);
+}
+function log(...args){
+	sleepFor(100)
+	console.log(...args)
+}
+const lInfo    = (...args) => log("[Info   ]".blue,   ...args);
+const lError   = (...args) => log("[Error  ]".red,    ...args);
+const lWarn    = (...args) => log("[Warning]".yellow, ...args);
+const lSuccess = (...args) => log("[Success]".green,  ...args);
+const lInquire = (...args) => log("[Inquire]".cyan,   ...args);
 const len = (str, len=20, filler=" ") => { while(str.length < len) str += filler; return str.slice(0, len)}
 
-// ==== Some useful constants
-const rtt = "RoboTeam Twente".red
-let dependencies = "libsdl2-2.0-0 libsdl2-dev libsdl2-ttf-dev libqt4-dev qt5-default libboost-all-dev ros-melodic-uuid-msgs ros-melodic-joy protobuf-c-compiler protobuf-compiler python-subprocess32 python-protobuf python3 python3-pip python-rosinstall python-wstool build-essential lcov gcovr git build-essential cmake libqt4-dev libgl1-mesa-dev libglu1-mesa-dev libode-dev libboost-dev";
 
-/* CMake 3.10   */ dependencies += "cmake"
-/* Protobuf 	*/ dependencies += "autoconf automake libtool curl make g++ unzip"
-/* ZMQ 			*/ dependencies += "libzmq3-dev libzmqpp-dev"
-/* Armadillo    */ dependencies += "libarmadillo-dev"
-
-const settings = getDefaultSettings();
-const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
-const isRoot = require('is-root')();
-const makeShellCommand = cmd => `gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
+// ==== Inquiry functions
 const confirmYes = () => ask("$ Answer: ").toLowerCase().includes('y');
 const confirmNo  = () => ask("$ Answer: ").toLowerCase().includes('n');
 const confirmYesDefault = () => {
@@ -43,6 +43,21 @@ const confirmNoDefault = () => {
 	let answer = ask("$ Answer: ");
 	return answer == "" || answer.toLowerCase().includes('n');
 }
+
+
+// ==== Some useful constants
+const rtt = "RoboTeam Twente".red
+let dependencies = "";
+
+/* CMake 3.10   */ dependencies += " cmake"
+/* Protobuf 	*/ dependencies += " autoconf automake libtool curl make g++ unzip"
+/* ZMQ 			*/ dependencies += " libzmq3-dev libzmqpp-dev"
+/* Armadillo    */ dependencies += " libarmadillo-dev"
+
+const settings = getDefaultSettings();
+const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
+const isRoot = require('is-root')();
+const makeShellCommand = cmd => `gnome-terminal --disable-factory -e '/bin/bash -c -i "${cmd.replace(/'/g, "\\'").replace(/"/g, '\\"')}"'`;
 
 
 // ============================================================================================== //
@@ -60,9 +75,9 @@ if(isRoot){
 
 lInfo(`Welcome ${user}, to this ${rtt} installation script. Before we continue, please make sure that you (and Emiel) have a cup of ${"coffee".yellow}.`);
 lInfo(`(Other types of beverages are allowed but not recommended nor supported by this ${rtt} installation script)`);
+sleepFor(2000)
 
-lInfo(`----- This script installs ROS Melodic Morenia which requires Ubuntu 18.04.1! -----
- * During the next 37 seconds to 41 years, This script will : 
+lInfo(`During the next 37 seconds to 41 years, This script will : 
  * ask if you want to be spiritually guided by soothing music while running this installation script
  * check if you have internet access, which is needed for installing dependencies, cloning repositories etc
  * check if you have installed the required software (e.g ROS, git)
@@ -82,18 +97,33 @@ lInfo(`----- This script installs ROS Melodic Morenia which requires Ubuntu 18.0
 
 lInquire('Are you ready to continue? (y/N)');
 // Make sure that people are not just continually pressing enter during this installation
-while(confirmNoDefault()){
-	lInquire("How about now? (y/N)");
-}
+// while(confirmNoDefault()){
+// 	lInquire("How about now? (y/N)");
+// }
 
-Promise.resolve().then(installProtobuf)
+Promise.resolve()
+.then(checkInternetAccess)	// Check if we have internet
+// .then(ensureDependencies)
+.then(inquireRTT_ROOT)		// Check for RTT_ROOT
+.then(ensureRootDir)		// Make sure the folder exists
+// .then(ensureRttbashrc)		// Write the rtt_bashrc file
+// .then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
+// .then(ensureFiles)
+// .then(ensureRoboTeamSuite)
+
+.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+.then(() => ensureRepo('RoboTeamTwente/ssl-vision', 'ssl-vision'))
+.then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
+
+.then(installProtobuf)
+// .then(ensureGit)			
 
 return
 
 Promise.resolve()
 .then(inquireSoothingMusic)
 .then(checkInternetAccess)	// Check if we have internet
-.then(ensureSoftware)		// Check if required software is installed
+.then(ensureGit)			// Check if git is installed
 .then(inquireRTT_ROOT)		// Check for RTT_ROOT
 .then(ensureRootDir)		// Make sure the folder exists
 .then(ensureRttbashrc)		// Write the rtt_bashrc file
@@ -171,26 +201,23 @@ function checkInternetAccess(){
 	});
 }
 
-// ==== Ensure that ROS and git are installed
-function ensureSoftware(){
+// ==== Ensure that Git is installed
+function ensureGit(){
 	l();
 	
-	let url;
-
 	// Check if Git is installed
 	lInfo(`I'm checking if you've installed ${"Git".yellow}...`)
-	url = "https://git-scm.com/download/linux";
+	let url = "https://git-scm.com/download/linux";
 	if(!commandExistsSync('git')){
 		lError(`Hold up! ${"Git".yellow} doesn't seem to be installed!`);
 		lError(`I will try to open up the website for you, which will tell you how to install ${"Git".yellow}`);
 		lError(url.yellow);
 		execSync(`xdg-open ${url} 1>/dev/null 2>/dev/null`);
-		return Promise.reject(`[ensureSoftware] ${"GIT".yellow} does not seem to be installed! please visit ${url.yellow}`);
+		return Promise.reject(`[ensureGit] ${"GIT".yellow} does not seem to be installed! please visit ${url.yellow}`);
 	}else{
 		lSuccess(`Git seems to be installed at ${execSync('which git', {encoding : 'UTF8'}).trim().yellow}!`);
+		return Promise.resolve();
 	}
-
-	return Promise.resolve();
 }
 
 // ==== Get the directory RTT_ROOT for all of the RoboTeam Twente stuff ==== //
@@ -199,8 +226,8 @@ function inquireRTT_ROOT(){
 		l(); 
 
 		const RTT_ROOT_ENV = process.env.RTT_ROOT;
-		lInfo(`Alright, time to choose an RTT_ROOT directory to put all of the ${rtt} stuff in. We're talking about code, simulators, scripts, etc. Everything software-team related.`);
-		lInfo(`The default RTT_ROOT directory is ${settings.RTT_ROOT.yellow}`);
+		lInfo(`Alright, time to choose an ${"RTT_ROOT".yellow} directory to put all of the ${rtt} stuff in. We're talking about code, simulators, scripts, etc. Everything software-team related.`);
+		lInfo(`The default ${"RTT_ROOT".yellow} directory is ${settings.RTT_ROOT.yellow}`);
 		
 		let changeRTT_ROOT = newRoot => {
 			settings.setRTT_ROOT(newRoot);    	// set the new RTT_ROOT in the settings object
@@ -362,86 +389,79 @@ function ensureRoboTeamSuite(){
 	return new Promise((resolve, reject) => {
 		l();
 
-		// { repo : "projects_node"	, dir : settings.RTT_ROOT }
-
-		// === Make sure that the repo directory exists : RTT_ROOT/workspace/src
-		lInfo(`I'm ensuring that the repository directory ${settings.RTT_REPOS.yellow} exists...`);
-		// fs.ensureDir(settings.RTT_REPOS, (err, dir) => {
+		// Ask if user wants to use SSH
+		lInquire("Would you like to use SSH to clone the git reposities? (Y/n)");
+		let useSSH = confirmYesDefault();
+		if(!useSSH){
+			lWarn("It is recommended to use SSH! If you're not sure how, don't hesitate to ask!");
+		}else
+		// === Using SSH. Making sure that github.com is in the ~/.ssh/known_hosts file, to prevent prompts from showing up
 		{
-			// Ask if user wants to use SSH
-			lInquire("Would you like to use SSH to clone the git reposities? (Y/n)");
-			let useSSH = confirmYesDefault();
-			if(!useSSH){
-				lWarn("It is recommended to use SSH! If you're not sure how, don't hesitate to ask!");
-			}else
-			// === Using SSH. Making sure that github.com is in the ~/.ssh/known_hosts file, to prevent prompts from showing up
-			{
-				let known_hostsPath = path.join('/', 'home', user, '.ssh', 'known_hosts');
-				lInfo(`I'm checking if the rsa-fingerprint for ${"github.com".yellow} is present in the file ${known_hostsPath.yellow}`);
-				// Check if the known_hosts file exists
-				let known_hostsExists = fs.existsSync(known_hostsPath);
-				let known_hosts = !known_hostsExists ? "" : fs.readFileSync(known_hostsPath, { encoding : 'utf8' });
-								
-				// Check if the known_hosts file includes the rsa-fingerprint for github.com
-				if(!known_hosts.includes("github.com")){
-					lWarn(`${"github.com".yellow} is not present in the file. I will add it for you...`);
-					let cmd = "ssh-keyscan github.com >> ~/.ssh/known_hosts";
-					try{
-						execSync(cmd, { encoding : 'utf8' });
-					}catch(err){
-						lError(`[ensureRoboTeamSuite] An error occured while adding ${"github.com".yellow} to the file ${known_hostsPath.yellow}!`);
-						lError(cmd.yellow)
-						lError(err.message.red)
-						return reject(err.message);
-					}
-					lSuccess(`rsa-fingerprint for ${"github.com".yellow} has been added!`)
-				}else{
-					lSuccess(`rsa-fingerprint for ${"github.com".yellow} is present!`)
+			let known_hostsPath = path.join('/', 'home', user, '.ssh', 'known_hosts');
+			lInfo(`I'm checking if the rsa-fingerprint for ${"github.com".yellow} is present in the file ${known_hostsPath.yellow}`);
+			// Check if the known_hosts file exists
+			let known_hostsExists = fs.existsSync(known_hostsPath);
+			let known_hosts = !known_hostsExists ? "" : fs.readFileSync(known_hostsPath, { encoding : 'utf8' });
+							
+			// Check if the known_hosts file includes the rsa-fingerprint for github.com
+			if(!known_hosts.includes("github.com")){
+				lWarn(`${"github.com".yellow} is not present in the file. I will add it for you...`);
+				let cmd = "ssh-keyscan github.com >> ~/.ssh/known_hosts";
+				try{
+					execSync(cmd, { encoding : 'utf8' });
+				}catch(err){
+					lError(`[ensureRoboTeamSuite] An error occured while adding ${"github.com".yellow} to the file ${known_hostsPath.yellow}!`);
+					lError(cmd.yellow)
+					lError(err.message.red)
+					return reject(err.message);
 				}
-				l();
+				lSuccess(`rsa-fingerprint for ${"github.com".yellow} has been added!`)
+			}else{
+				lSuccess(`rsa-fingerprint for ${"github.com".yellow} is present!`)
+			}
+		}
+
+		lInfo(`Cloning roboteam_suite...`);
+		// ==== Create promises for cloning all the repositories. Default to RTT_ROOT/workspace/src/. Default to master branch
+		let repoPromise = new Promise((resolve, reject) => {
+			let repo = "roboteam_suite"
+			let outputDir= path.join(settings.RTT_REPOS, repo);
+			let cmdSsh   = `git clone --recursive-submodule git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
+			let cmdHttps = `git clone --recursive-submodule https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
+			let cmd = useSSH ? cmdSsh : cmdHttps;
+			
+			if(fs.existsSync(outputDir)){
+				lWarn(`Directory ${outputDir.yellow} already exists. Cloning into a non-empty directory is not possible. Skipping ${repo.yellow}`);
+				return resolve();
 			}
 
-			lInfo(`Cloning roboteam_suite...`);
-			// ==== Create promises for cloning all the repositories. Default to RTT_ROOT/workspace/src/. Default to master branch
-			let repoPromise = new Promise((resolve, reject) => {
-				let repo = "roboteam_suite"
-				let outputDir= path.join(settings.RTT_ROOT, repo);
-				let cmdSsh   = `git clone git@github.com:RoboTeamTwente/${repo}.git ${outputDir}`;
-				let cmdHttps = `git clone https://github.com/RoboTeamTwente/${repo}.git ${outputDir}`;
-				let cmd = useSSH ? cmdSsh : cmdHttps;
-				
-				if(fs.existsSync(outputDir)){
-					lWarn(`Directory ${outputDir.yellow} already exists. Cloning into a non-empty directory is not possible. Skipping ${repo.yellow}`);
+			exec(cmd, {encoding : 'utf8'}, err => {
+				if(err){
+					lError(`[ensureRoboTeamSuite] An error occured while cloning ${repo.yellow}!`);
+					lError(cmd.yellow)
+					lError(err.message.red)
+					return reject(err);
+				}else{
+					lSuccess(`Repository ${repo.yellow} cloned succesfully!`);
 					return resolve();
 				}
-
-				exec(cmd, {encoding : 'utf8'}, err => {
-					if(err){
-						lError(`[ensureRoboTeamSuite] An error occured while cloning ${repo.yellow}!`);
-						lError(cmd.yellow)
-						lError(err.message.red)
-						return reject(err);
-					}else{
-						lSuccess(`Repository ${repo.yellow} cloned succesfully!`);
-						return resolve();
-					}
-				})	
-			})
+			})	
+		})
 			
-			// ==== Wait for all the repositories to be cloned
-			Promise.all(promises).then(output => {
-				lSuccess('All repos cloned!');
-				return resolve();
-			}).catch(err => {
-				lError(`An error occured while cloning all the repos!`);
-				return reject(`[ensureRoboTeamSuite] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
-			})
+		// ==== Wait for all the repositories to be cloned
+		repoPromise.then(output => {
+			lSuccess('All repos cloned!');
+			return resolve();
+		}).catch(err => {
+			lError(`An error occured while cloning all the repos!`);
+			return reject(`[ensureRoboTeamSuite] An error occured while cloning the git repos!\n${err.message ? err.message.red : err}`);
 		})
 	});
 }
 
 
 function installProtobuf() {
+	l()
 	// Check if Protobuf is installed
 	lInfo(`I'm checking if you've installed ${"Protobuf".yellow}...`)
 	if(commandExistsSync('protoc')){
@@ -535,13 +555,8 @@ function ensureFiles(){
 
 		lInfo(`I'm copying all the useful files to the directory ${settings.RTT_ROOT.yellow}...`);
 		const mapping = [
-			[path.join(__dirname,'files','gitstatus.sh'),      path.join(settings.RTT_ROOT, 'workspace', 'gitstatus.sh')],
-			[path.join(__dirname,'files','gitpull.sh'),        path.join(settings.RTT_ROOT, 'workspace', 'gitpull.sh')],
-			[path.join(__dirname,'files','startSerial.sh'),    path.join(settings.RTT_ROOT, 'startSerial.sh')],
-			[path.join(__dirname,'files','startGrSim.sh'),     path.join(settings.RTT_ROOT, 'startGrSim.sh')],
 			[path.join(__dirname,'files','thumbsup.jpg'),      path.join(settings.RTT_ROOT, 'thumbsup.jpg')],
 			[path.join(__dirname,'files','thumbsdown.jpg'),    path.join(settings.RTT_ROOT, 'thumbsdown.jpg')],
-			[path.join(__dirname,'files','rosconsole.config'), path.join(settings.RTT_ROOT, 'rosconsole.config')] 
 		]
 
 		// Create promises to copy all files to the correct directory
@@ -875,7 +890,7 @@ function getDefaultSettings(){
 		HOME,
 		RTT_ROOT,
 		RTT_BASHRC : path.join(RTT_ROOT, 'rtt_bashrc'),
-		RTT_REPOS  : path.join(RTT_ROOT),
+		RTT_REPOS  : RTT_ROOT,
 		settingsChanged : false,
 
 		setRTT_ROOT : function(rtt_root){
@@ -884,6 +899,9 @@ function getDefaultSettings(){
 			
 			this.RTT_BASHRC = path.join(this.RTT_ROOT, 'rtt_bashrc');
 			lInfo(`[settings] Changing RTT_BASHRC to ${this.RTT_BASHRC.yellow}`);
+
+			this.RTT_REPOS = rtt_root
+			lInfo(`[settings] Changing RTT_REPOS to ${this.RTT_REPOS.yellow}`);
 		}
 	}
 }
