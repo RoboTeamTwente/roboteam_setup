@@ -117,8 +117,8 @@ Promise.resolve()
 .then(ensureRoboTeamSuite)
 
 .then(installPylon)
-// .then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
-.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
+.then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
+// .then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
 .then(() => ensureRepo('RoboCup-SSL/ssl-vision', 'ssl-vision'))
 .then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
 
@@ -658,7 +658,7 @@ function ensureRepo(repo, dest, shouldBuild = true){
 		const outputDir = path.join(settings.RTT_ROOT, dest);
 
 		let clone = () => {
-			const cmd = `git clone https://github.com/${repo}.git ${outputDir}`;
+			const cmd = `git clone https://github.com/${repo}.git ${outputDir} --recurse-submodules`;
 			lInfo(`Running command ${cmd.yellow}`);
 			lInfo('This may take a while...');
 			exec(cmd, (err, stdout, stderr) => {
