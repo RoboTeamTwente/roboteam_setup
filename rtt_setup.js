@@ -21,7 +21,7 @@ function sleepFor( sleepDuration ){
     while(new Date().getTime() < now + sleepDuration);
 }
 function log(...args){
-	sleepFor(100)
+	sleepFor(300)
 	console.log(...args)
 }
 const lInfo    = (...args) => log("[Info   ]".blue,   ...args);
@@ -126,6 +126,25 @@ Promise.resolve()
 .then(buildGrSimVarTypes)
 .then(buildGrSim)
 .then(buildSSLRefbox)
+.then(removeModemManager)
+.then(addUserToDialoutGroup)
+
+.then(() => {
+	l();
+	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
+	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
+	l();l();
+	if(process.stdout.columns < 170)
+		printLogoSmall();
+	else
+		printLogoColoured();
+})
+.catch(err => {
+	l();
+	lError(`An error occured while running the ${rtt} installation script! sad.`);
+	lError(err);
+	process.exit(-1);
+});
 
 
 return
@@ -795,7 +814,7 @@ function buildSSLRefbox(){
 function removeModemManager(){
 	return new Promise((resolve, reject) => {
 		l();
-		let cmd = `sudo apt purge modemmanager`;
+		let cmd = `sudo apt purge modemmanager -y`;
 
 		lInfo(`I'm removing ${"modemmanager".yellow} for you, because it interferes with the basestations`);
 		lInfo(`I'm running the command ${cmd.yellow}`);
