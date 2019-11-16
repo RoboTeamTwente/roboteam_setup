@@ -22,7 +22,7 @@ ensure_all() {
 	ensure_trizen
 	echo "Installing dependencies... (Skipping if already present)"
 	echo "This might take a while, due to zmqpp and armadillo, do not cancel."
-	trizen -S zmqpp armadillo cmake protobuf zeromq gtest boost --needed
+	trizen -S zmqpp protobuf armadillo cmake protobuf zeromq gtest boost --needed
 	echo "Installed dependencies :)"
 
 	echo "Keep in mind the repositories themselves are not cloned, you'll have to do that yourself";
