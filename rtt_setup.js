@@ -147,50 +147,7 @@ Promise.resolve()
 });
 
 
-return
-
-Promise.resolve()
-.then(inquireSoothingMusic)
-.then(checkInternetAccess)	// Check if we have internet
-.then(ensureGit)			// Check if git is installed
-.then(inquireRTT_ROOT)		// Check for RTT_ROOT
-.then(ensureRootDir)		// Make sure the folder exists
-.then(ensureRttbashrc)		// Write the rtt_bashrc file
-.then(ensureBashrc)			// add rtt_bashrc to ~/.bashrc
-.then(ensureRoboTeamSuite)
-.then(ensureFiles)
-.then(ensureDependencies)
-// .then(() => ensureRepo('RoboTeamTwente/grSim', 'grSim'))
-.then(() => ensureRepo('RoboCup-SSL/grSim', 'grSim'))
-.then(buildGrSimVarTypes)
-.then(buildGrSim)
-.then(installPylon)
-.then(() => ensureRepo('RoboTeamTwente/ssl-vision', 'ssl-vision'))
-.then(buildSSLVision)
-.then(() => ensureRepo('RoboCup-SSL/ssl-refbox', 'ssl-refbox'))
-.then(buildSSLRefbox)
-.then(setSourceDevel)
-.then(runCatkinMakeInWorkspace)
-.then(removeModemManager)
-.then(addUserToDialoutGroup)
-
-.then(() => {
-	l();
-	lSuccess(`Congratulations! You have officially reached the end of this ${rtt} installation script. Pour yourself another cup or two, you deserved it!`);
-	lInfo(`When you've done that, close this terminal, open a new one, and type ${"rtt".yellow}. This will lead you to your new everything.`);
-	l();l();
-	if(process.stdout.columns < 170)
-		printLogoSmall();
-	else
-		printLogoColoured();
-})
-.catch(err => {
-	l();
-	lError(`An error occured while running the ${rtt} installation script! sad.`);
-	lError(err);
-	process.exit(-1);
-});
-
+return 0
 // ==== The install script has finished ==== //
 
 // ==== Inquire soothing music ==== //
@@ -420,11 +377,9 @@ function ensureRoboTeamSuite(){
 		l();
 
 		// Ask if user wants to use SSH
-		lInquire("Would you like to use SSH to clone the git reposities? (Y/n)");
-		let useSSH = confirmYesDefault();
-		if(!useSSH){
-			lWarn("It is recommended to use SSH! If you're not sure how, don't hesitate to ask!");
-		}else
+		lWarn("It is recommended to use SSH! If you're not sure how, don't hesitate to ask!");
+		lInquire("Would you like to use SSH to clone the git reposities? (y/N)");
+		let useSSH = confirmNoDefault();
 		// === Using SSH. Making sure that github.com is in the ~/.ssh/known_hosts file, to prevent prompts from showing up
 		{
 			let known_hostsPath = path.join('/', 'home', user, '.ssh', 'known_hosts');
