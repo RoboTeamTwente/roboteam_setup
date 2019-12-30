@@ -56,7 +56,7 @@ let dependencies = "";
 /* Protobuf 	*/ dependencies += " autoconf automake libtool curl make g++ unzip"
 /* ZMQ 			*/ dependencies += " libzmq3-dev libzmqpp-dev"
 /* Armadillo    */ dependencies += " libarmadillo-dev"
-/* RTT 			*/ dependencies += " libboost-dev libgtest-dev"
+/* RTT 			*/ dependencies += " libboost-dev libgtest-dev libqt5charts5-dev"
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
