@@ -55,8 +55,7 @@ let dependencies = "";
 /* grSim 		*/ dependencies += " build-essential cmake qt5-default libqt5opengl5-dev libgl1-mesa-dev libglu1-mesa-dev libode-dev"
 /* Protobuf 	*/ dependencies += " autoconf automake libtool curl make g++ unzip"
 /* ZMQ 			*/ dependencies += " libzmq3-dev libzmqpp-dev"
-/* Armadillo    */ dependencies += " libarmadillo-dev"
-/* RTT 			*/ dependencies += " libboost-dev libgtest-dev libqt5charts5-dev"
+/* RTT 			*/ dependencies += " libboost-dev libgtest-dev libqt5charts5-dev nlohmann-json-dev"
 
 const settings = getDefaultSettings();
 const user = (() => {let _user = process.env.USER; _user[0] = _user[0].toUpperCase(); return _user;})();
